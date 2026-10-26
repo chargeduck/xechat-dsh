@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>xechat-dsh 应用包导出验证</title>
+  <style>
+    body { font-family: -apple-system, 'Segoe UI', 'Microsoft YaHei', sans-serif; margin: 0; padding: 24px; background: #1e1e1e; color: #ccc; }
+    h1 { font-size: 16px; font-weight: 600; }
+    .row { padding: 6px 0; font-size: 13px; }
+    .ok { color: #4ec9b0; }
+    .fail { color: #f44747; }
+    code { background: #2d2d30; padding: 2px 6px; border-radius: 4px; }
+    #app { margin-top: 16px; border: 1px solid #3c3c3c; height: 420px; overflow: hidden; }
+  </style>
+</head>
+<body>
+  <h1>xechat-dsh 应用包导出验证</h1>
+  <div class="row">目的：确认通过 <code>&lt;script src=Blob&gt;</code> 注入后，能取到 <code>window.__XECHAT_DSH_APP__.mountXechat</code></div>
+  <div id="log"></div>
+  <div id="app"></div>
+
+  <script>
+    const log = (ok, msg) => {
+      const el = document.createElement('div')
+      el.className = 'row ' + (ok ? 'ok' : 'fail')
+      el.textContent = (ok ? 'PASS  ' : 'FAIL  ') + msg
+      document.getElementById('log').appendChild(el)
+    }
+
+    // 模拟插件壳：脚本执行前写入嵌入标记，避免应用自举
+    window.__XECHAT_DSH_EMBEDDED__ = true
+
+    const script = document.createElement('script')
+    script.onload = () => {
+      const mod = window.__XECHAT_DSH_APP__
+      log(!!mod, 'window.__XECHAT_DSH_APP__ 已定义')
+      log(!!(mod && typeof mod.mountXechat === 'function'), 'mountXechat 是函数')
+      log(!!(mod && typeof mod.initXechat === 'function'), 'initXechat 是函数')
+
+      if (mod && typeof mod.mountXechat === 'function') {
+        try {
+          mod.mountXechat(document.getElementById('app'))
+          log(true, 'mountXechat 调用未抛错')
+          setTimeout(() => {
+            const root = document.querySelector('#app .app-container')
+            log(!!root, 'Vue 应用已渲染出 .app-container')
+            const btns = document.querySelectorAll('#app .nav-btn')
+            log(btns.length >= 3, '导航按钮数量 = ' + btns.length)
+          }, 800)
+        } catch (e) {
+          log(false, 'mountXechat 抛错: ' + e.message)
+        }
+      }
+    }
+    script.onerror = () => log(false, '脚本加载失败')
+    script.src = 'lib/xechat-app.js'
+    document.head.appendChild(script)
+  </script>
+</body>
+</html>

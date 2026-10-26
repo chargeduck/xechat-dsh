@@ -1,0 +1,97 @@
+{
+  "name": "xechat-dsh",
+  "version": "0.1.0",
+  "description": "xechat side-panel chat client for the DeepSeek Harness Web UI: a dockable sidebar that keeps the XEChat pond conversation available while you work.",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chargeduck/xechat-dsh.git"
+  },
+  "homepage": "https://github.com/chargeduck/xechat-dsh#readme",
+  "bugs": {
+    "url": "https://github.com/chargeduck/xechat-dsh/issues"
+  },
+  "main": "./lib/index.js",
+  "exports": {
+    ".": {
+      "default": "./lib/index.js"
+    },
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web"
+    }
+  },
+  "files": [
+    "lib",
+    "cordis.patch.yml",
+    "README.md",
+    "INSTALL.md",
+    "LICENSE",
+    "screenshots.json",
+    "install.sh",
+    "install.ps1",
+    "install.bat"
+  ],
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "plugin",
+    "sidebar",
+    "chat",
+    "xechat"
+  ],
+  "scripts": {
+    "dev": "vite",
+    "build:vite": "vite build",
+    "build:plugin": "tsdown -c tsdown.config.mjs",
+    "build": "vite build && tsdown -c tsdown.config.mjs",
+    "test": "node --experimental-strip-types --test tests/app-bundle.test.ts tests/browser-theme.test.ts tests/dock-size.test.ts tests/layout.test.ts tests/bundle.test.ts",
+    "verify:dock": "node scripts/verify-dock-states.mjs",
+    "verify:bundle": "node scripts/verify-client-bundle.mjs",
+    "preview": "vite preview"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": ">=20",
+    "dsh": ">=0.2.0-rc.1"
+  },
+  "peerDependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@element-plus/icons-vue": "^2.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "@vitejs/plugin-vue": "^5.2.3",
+    "@vueuse/core": "^12.8.0",
+    "axios": "^1.19.0",
+    "element-plus": "^2.9.7",
+    "lunar-javascript": "^1.7.7",
+    "markdown-it": "^15.0.0",
+    "markdown-it-container": "^4.0.0",
+    "markdown-it-emoji": "^3.1.0",
+    "pinia": "^4.0.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "sass": "^1.85.0",
+    "tsdown": "^0.22.14",
+    "unplugin-element-plus": "^0.9.0",
+    "vite": "^6.3.5",
+    "vue": "^3.5.13"
+  }
+}

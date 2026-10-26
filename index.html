@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>xechat-dsh</title>
+    <script>
+        // 防主题闪烁：加载前按存储值预置 html class（dark=深色 / light=亮色，默认深色）
+        (function () {
+            try {
+                var t = localStorage.getItem('xechat-theme');
+                document.documentElement.className = t === 'light' ? 'light' : 'dark';
+            } catch (e) {
+                document.documentElement.className = 'dark';
+            }
+        })();
+    </script>
+    <style>
+        body { margin:0; overflow:hidden; background:#1e1e1e; color:#ccc; font-family:sans-serif; }
+        #error-box { display:none; padding:20px; color:#f56c6c; white-space:pre-wrap; font-size:13px; }
+    </style>
+    <script>
+        // 捕获 JS 运行时错误（仅写入 error-box，不调用 console 避免 JCEF 二次报错）
+        window.onerror = function(msg, url, line, col, error) {
+          const box = document.getElementById('error-box')
+          if (!box) return false;
+            box.style.display = 'block';
+            box.textContent = 'JS Error: ' + msg + '\\nFile: ' + url + '\\nLine: ' + line + ':' + col;
+            if (error) {
+                box.textContent += '\\n\\n' + (error.name || 'Error') + ': ' + (error.message || '');
+                if (error.stack) box.textContent += '\\n\\nStack:\\n' + error.stack;
+            }
+            return true;
+        };
+        // 捕获资源加载错误（图片/字体/脚本加载失败等）
+        window.addEventListener('error', function(e) {
+            if (e.target !== window) {
+                console.error('[resource error]', e.target.tagName, e.target.src || e.target.href, e.message);
+              const box = document.getElementById('error-box')
+              if (box && box.style.display !== 'block') {
+                    box.style.display = 'block';
+                    box.textContent = 'Resource Error: ' + (e.target.tagName || '?') + ' ' + (e.target.src || e.target.href || '');
+                }
+            }
+        }, true);
+        // 捕获未处理的 Promise rejection
+        window.addEventListener('unhandledrejection', function(e) {
+            console.error('[unhandledrejection]', e.reason);
+          const box = document.getElementById('error-box')
+          if (box && box.style.display !== 'block') {
+                box.style.display = 'block';
+                box.textContent = 'Unhandled Rejection: ' + (e.reason && e.reason.stack ? e.reason.stack : String(e.reason));
+            }
+        });
+    </script>
+</head>
+<body>
+    <div id="app">
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;color:#888;font-size:14px;">
+            <div>加载中...</div>
+            <div style="font-size:11px;color:#555;margin-top:6px;">Ctrl+Shift+D 打开调试面板</div>
+        </div>
+    </div>
+    <div id="error-box"></div>
+    <script type="module" src="/src/main.js"></script>
+</body>
+</html>

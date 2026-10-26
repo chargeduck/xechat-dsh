@@ -1,0 +1,15 @@
+node_modules
+dist/
+*.log
+.DS_Store
+.idea/
+.vscode/
+*.tsbuildinfo
+
+# 注意：lib/ 必须提交进仓库，不能忽略。
+# 市场的源码安装路径（dsh plugin add <repo>）不会替使用者构建，
+# 仓库里没有 lib/client.js 就装不上。
+
+# 本地打包产物不提交，避免与 lib/ 内容不一致而过期；
+# 发布用 GitHub Release 附件。
+*.tgz

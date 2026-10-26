@@ -1,0 +1,8 @@
+# xechat-dsh bundle patch
+#
+# 由 `dsh plugin --profile web add <repo>` 追加到 profile 的 bundle 栈。
+# 插入一条 loader row：Node 侧为空的 host half，浏览器侧由
+# dsh.client.platform = "web" + exports["./client"] 发现并加载 lib/client.js。
+- insert:
+    - id: xechat-dsh
+      name: 'xechat-dsh'

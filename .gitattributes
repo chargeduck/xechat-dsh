@@ -1,0 +1,35 @@
+# 统一换行符，避免在 Windows 上提交后破坏跨平台脚本。
+#
+# 这是个真问题：core.autocrlf 默认为 true 时，git 会把工作区的 LF 转成 CRLF。
+# shell 脚本带 CRLF 后在 Linux/macOS 上执行会报
+#   /bin/bash^M: bad interpreter: No such file or directory
+# 这种错误很难从现象联想到换行符，所以在版本库里就锁死。
+
+* text=auto eol=lf
+
+# 必须在检出的工作区保持 LF，否则脚本直接不可执行
+*.sh      text eol=lf
+*.mjs     text eol=lf
+*.js      text eol=lf
+*.ts      text eol=lf
+*.tsx     text eol=lf
+*.json    text eol=lf
+*.yml     text eol=lf
+*.yaml    text eol=lf
+*.md      text eol=lf
+.gitignore      text eol=lf
+.gitattributes  text eol=lf
+
+# Windows 批处理必须是 CRLF，否则 cmd.exe 解析可能出问题
+*.bat     text eol=crlf
+*.cmd     text eol=crlf
+
+# 二进制文件不做任何换行转换
+*.png     binary
+*.jpg     binary
+*.jpeg    binary
+*.webp    binary
+*.gif     binary
+*.ico     binary
+*.tgz     binary
+*.map     binary
