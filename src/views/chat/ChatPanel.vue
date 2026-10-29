@@ -93,6 +93,7 @@ import { useSettingsStore, formatShortcut } from '@/stores/settingsStore'
 import { useCommandHistoryStore } from '@/stores/commandHistoryStore'
 import { setChatStoreBridge, state } from '@/store.js'
 import { transport } from '@/transport/transport-manager.js'
+import { saveSession, loadSession, clearSession } from '@/session.js'
 import MarkdownMessage from '@/components/MarkdownMessage.vue'
 import StyleSelector from '@/components/StyleSelector.vue'
 import { useMaskStore } from '@/stores/maskStore'
@@ -305,9 +306,47 @@ async function handleLogin(rawText) {
     await transport.loginToServer(host, port, loginPayload)
     state.online = true
     state.username = username
+    // 记住这次登录：宿主刷新 / 插件重新启用后据此静默回到原鱼塘
+    saveSession({ host: host, port: port, username: username, pondName: pondName, status: 'FISHING' })
     chatStore.addMessage('已连接到 ' + host + ':' + port + '，登录中...')
   } catch (e) {
     console.error('[ChatPanel] 连接服务器失败: ' + (e.message || '未知错误'))
+  }
+}
+
+/**
+ * 静默恢复上次登录。
+ *
+ * 面板收起/展开已经不会重建应用（见 DockShell），这条路径主要覆盖
+ * 宿主刷新页面、插件停用后重新启用等真正重建应用的场景。
+ * 只有当前连接上没有在线会话时才发起 LOGIN，避免服务端判定「昵称重复」。
+ */
+async function restoreSession() {
+  const saved = loadSession()
+  if (!saved) return
+  state.username = saved.username
+  serverStore.setCurrentLogin(saved.host, saved.port, 'websocket', saved.pondName || null)
+  if (transport.loggedIn) return
+
+  const srv = (serverStore.servers || []).find(function (s) {
+    return s.ip === saved.host && String(s.port) === String(saved.port)
+  }) || null
+  console.log('[ChatPanel] 恢复上次会话: ' + saved.username + '@' + saved.host + ':' + saved.port)
+  try {
+    await transport.loginToServer(saved.host, String(saved.port), {
+      action: 'LOGIN',
+      body: {
+        username: saved.username,
+        status: saved.status || 'FISHING',
+        platform: 'WEB',
+        uuid: deviceStore.uuid,
+        pluginVersion: (srv && srv.version) || '',
+        reconnected: true,
+        token: settingsStore.adminToken || ''
+      }
+    })
+  } catch (e) {
+    console.warn('[ChatPanel] 恢复会话失败', e)
   }
 }
 
@@ -590,6 +629,9 @@ function handleCleanCmd(text) {
 function handleExitCmd(text) {
   if (!isExactCommand(text, '#exit')) return false
   transport.disconnect()
+  // 主动退出即清除记住的会话，下次打开不会自动回到鱼塘
+  clearSession()
+  state.username = ''
   chatStore.addMessage('已断开连接')
   state.online = false
   return true
@@ -968,6 +1010,8 @@ function onEnter(e) {
 onMounted(() => {
   console.log('[ChatPanel] 组件挂载, chatStore.messages.length=' + chatStore.messages.length)
   setChatStoreBridge(chatStore)
+  // 恢复上次登录（应用被重建时才会真正发起连接）
+  restoreSession()
   // 恢复活着提醒计时（若上次开启过，刷新/重挂后继续生效）
   aliveStore.startTicker()
   // 启动时静默拉取服务器列表（#showServer -c），写入 Pinia 供后续 #login / #loging 使用

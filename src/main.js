@@ -8,7 +8,7 @@ import * as ElementPlusIconsVue from '@element-plus/icons-vue'
 
 import App from './App.vue'
 import './styles/global.scss'
-import { init as initTransport } from './api.js'
+import { init as initTransport, disconnect as disconnectTransport } from './api.js'
 
 /**
  * 挂载 xechat Vue 应用到指定容器。
@@ -31,6 +31,14 @@ export function mountXechat(el) {
 
   return {
     unmount() {
+      // 先卸 Vue，再断开传输层：宿主停用/重载插件时必须主动关连接，
+      // 否则服务端会一直保留这条会话，下次登录同名账号被判定「昵称重复」，
+      // 而残留连接仍会收到广播，造成消息重复投递。
+      try {
+        disconnectTransport()
+      } catch (e) {
+        console.warn('[main.js] 传输层断开失败', e)
+      }
       app.unmount()
       console.log('[main.js] Vue 应用已卸载')
     }

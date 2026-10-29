@@ -1,6 +1,6 @@
 {
   "name": "xechat-dsh",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "xechat side-panel chat client for the DeepSeek Harness Web UI: a dockable sidebar that keeps the XEChat pond conversation available while you work.",
   "type": "module",
   "repository": {
@@ -52,7 +52,7 @@
     "build:vite": "vite build",
     "build:plugin": "tsdown -c tsdown.config.mjs",
     "build": "vite build && tsdown -c tsdown.config.mjs",
-    "test": "node --experimental-strip-types --test tests/app-bundle.test.ts tests/browser-theme.test.ts tests/dock-size.test.ts tests/layout.test.ts tests/bundle.test.ts",
+    "test": "node --experimental-strip-types --test tests/app-bundle.test.ts tests/browser-theme.test.ts tests/dock-size.test.ts tests/layout.test.ts tests/transport-session.test.ts tests/bundle.test.ts",
     "verify:dock": "node scripts/verify-dock-states.mjs",
     "verify:bundle": "node scripts/verify-client-bundle.mjs",
     "preview": "vite preview"

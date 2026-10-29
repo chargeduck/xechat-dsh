@@ -27,13 +27,23 @@ export class WebSocketTransport {
     this._intentionalClose = false
     // 是否曾成功建立过连接：从未连接成功时 onclose 属存活探测失败，不触发 disconnected 提示
     this._everConnected = false
+    // 本次连接是否已发出 LOGIN（服务端已把它算作一条在线会话）
+    this._loggedIn = false
   }
 
   /** 当前 WebSocket 连接地址（用于推导 HTTP 图片下载地址） */
   get wsUrl() { return this._url }
 
+  /** 连接是否已就绪 */
+  get isOpen() { return !!this._ws && this._ws.readyState === WebSocket.OPEN }
+
+  /** 是否已登录（服务端侧存在本连接的用户会话） */
+  get loggedIn() { return this._loggedIn && this.isOpen }
+
   async connect() {
-    if (this._ws && this._ws.readyState === WebSocket.OPEN) return
+    // CONNECTING 也算「已有连接在建立」：重复调用会再 new 一个 socket，
+    // 把前一个孤儿化的同时，也会让服务端多算一条会话，广播随之重复投递
+    if (this._ws && (this._ws.readyState === WebSocket.OPEN || this._ws.readyState === WebSocket.CONNECTING)) return
     this._intentionalClose = false
     const self = this
 
@@ -66,6 +76,7 @@ export class WebSocketTransport {
         // 握手失败(如 302)时 onerror 先触发、onclose 随后触发，event 里带 close code
         console.log('[WS][connect] onclose 触发, code=' + event.code + ', reason=' + event.reason + ', wasClean=' + event.wasClean)
         self._stopHeartbeat()
+        self._loggedIn = false
         // 存活探测失败（从未连接成功过）静默，不弹"连接已断开"；真正在线后掉线才提示
         if (self._everConnected) self._emit('disconnected', { code: event.code })
         if (!self._intentionalClose) self._scheduleReconnect()
@@ -148,13 +159,24 @@ export class WebSocketTransport {
   async loginToServer(host, port, loginPayload) {
     const wsPort = parseInt(port) + 1
     const url = 'ws://' + host + ':' + wsPort + '/xechat'
-    this._url = url
+    const prevUrl = this._url
     console.log('[WS][loginToServer] host=' + host + ', port=' + port + ', wsPort=' + wsPort + ', url=' + url + ', loginPayload=' + JSON.stringify(loginPayload))
+
+    // 已经连在同一个地址上：直接复用连接补发 LOGIN，不要断开重连。
+    // 断开重连会多一轮「服务端清理会话 → 重建会话」，刷新/恢复登录时尤其容易和
+    // initXechat() 的连接互相打断，最终留下多条在线连接导致消息重复投递。
+    if (this._ws && this._ws.readyState === WebSocket.OPEN && prevUrl === url) {
+      console.log('[WS][loginToServer] 复用现有连接')
+      this._intentionalClose = false
+      if (loginPayload) this._send(loginPayload)
+      return
+    }
 
     // 断开旧连接
     this.disconnect()
     this._intentionalClose = false
     this._reconnectAttempts = 0
+    this._url = url
 
     const self = this
     return new Promise(function(resolve, reject) {
@@ -187,6 +209,7 @@ export class WebSocketTransport {
       ws.onclose = function(event) {
         console.log('[WS][loginToServer] onclose 触发, code=' + event.code + ', reason=' + event.reason + ', wasClean=' + event.wasClean)
         self._stopHeartbeat()
+        self._loggedIn = false
         if (!self._intentionalClose) self._scheduleReconnect()
       }
 
@@ -337,6 +360,8 @@ export class WebSocketTransport {
 
   _send(data) {
     if (this._ws && this._ws.readyState === WebSocket.OPEN) {
+      // 统一在这里标记登录态：无论走 loginToServer 还是 execCommand 的 LOGIN 帧
+      if (data && data.action === 'LOGIN') this._loggedIn = true
       this._ws.send(JSON.stringify(data))
     }
   }
@@ -375,6 +400,7 @@ export class WebSocketTransport {
 
   disconnect() {
     this._intentionalClose = true
+    this._loggedIn = false
     this._stopHeartbeat()
     if (this._reconnectTimer) { clearTimeout(this._reconnectTimer); this._reconnectTimer = null }
     if (this._ws) { this._ws.close(); this._ws = null }

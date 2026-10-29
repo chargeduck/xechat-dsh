@@ -14,15 +14,33 @@
 import APP_SOURCE, { APP_CSS } from 'virtual:xechat-app-source'
 
 const APP_URL_KEY = '__XECHAT_DSH_APP_URL__'
+const APP_FINGERPRINT_KEY = '__XECHAT_DSH_APP_FP__'
+const APP_GLOBAL_NAME = '__XECHAT_DSH_APP__'
 const APP_STYLE_ATTR = 'data-plugin-app="xechat-dsh"'
 
 let appUrl: string | undefined
 let loadPromise: Promise<XechatAppModule> | undefined
 
-/** 注入应用样式（幂等）。 */
+/**
+ * 产物指纹：判断 window 上缓存的应用包是否属于当前版本。
+ *
+ * 插件热更新只会重新执行插件壳（client.js），window 上的 `__XECHAT_DSH_APP__`
+ * 和 Blob URL 都还在。若直接复用，上一版 Vue 应用会一直活着，新代码永远不生效。
+ * 抽样 4096 个字符算哈希：4MB 级产物也就几毫秒，足够区分不同构建。
+ */
+function appFingerprint(source: string): string {
+  let hash = 0
+  const step = Math.max(1, Math.floor(source.length / 4096))
+  for (let i = 0; i < source.length; i += step) {
+    hash = (hash * 31 + source.charCodeAt(i)) | 0
+  }
+  return source.length + ':' + (hash >>> 0).toString(36)
+}
+
+/** 注入应用样式（幂等；产物更新时替换旧样式表）。 */
 function mountAppStyles(): void {
   if (typeof document === 'undefined' || !APP_CSS) return
-  if (document.querySelector(`style[${APP_STYLE_ATTR}]`)) return
+  document.querySelectorAll(`style[${APP_STYLE_ATTR}]`).forEach((node) => node.remove())
   const style = document.createElement('style')
   style.setAttribute('data-plugin-app', 'xechat-dsh')
   style.textContent = APP_CSS
@@ -61,6 +79,18 @@ function resolveAppUrl(): string {
  * 注入 <script> 而非 eval：既避开 CSP 对 eval 的限制，也让错误堆栈可读。
  */
 export function loadXechatApp(): Promise<XechatAppModule> {
+  if (typeof window !== 'undefined') {
+    const fp = appFingerprint(APP_SOURCE)
+    const store = window as unknown as Record<string, unknown>
+    if (store[APP_FINGERPRINT_KEY] !== fp) {
+      // 产物变了（插件升级/重新构建）：丢弃上一版的应用包全局与 Blob URL。
+      // 否则 readModule 会命中旧全局，本次修复的连接管理代码根本不会执行。
+      delete store[APP_GLOBAL_NAME]
+      resetAppUrl()
+      store[APP_FINGERPRINT_KEY] = fp
+    }
+  }
+
   if (loadPromise) return loadPromise
 
   mountAppStyles()
@@ -69,7 +99,7 @@ export function loadXechatApp(): Promise<XechatAppModule> {
   ;(window as unknown as Record<string, unknown>).__XECHAT_DSH_EMBEDDED__ = true
 
   loadPromise = new Promise<XechatAppModule>((resolve, reject) => {
-    const globalName = '__XECHAT_DSH_APP__'
+    const globalName = APP_GLOBAL_NAME
 
     // 已加载过（例如插件重载而脚本未被移除）：直接用全局导出
     const existing = (window as unknown as Record<string, XechatAppModule | undefined>)[globalName]

@@ -106,18 +106,24 @@ test('运行时也会写入 top（令牌晚于挂载发布时兜底）', () => {
  *
  * 真实故障（2026-10-22）：面板展开时宽度 380px 常驻，宿主的
  * 折叠/新建等控件被压或在层级上抢不过 overlay 层，点了没反应。
- * 修复是引入三态 visibility，收起/暂停时面板 DOM 直接消失。
+ * 修复是引入三态 visibility：收起/暂停时宽度归零、面板不占位置。
+ *
+ * 注意（2026-10-29）：让位只靠隐藏实现，不再销毁面板 DOM —— 销毁会连带
+ * 卸载 Vue 应用，重建时丢登录态并新开 WebSocket，导致消息重复投递。
  */
-test('收起与暂停都会让面板 DOM 消失（真正让出位置）', () => {
+test('收起/暂停只隐藏面板，不占宽度（DOM 保留）', () => {
   const shell = fs.readFileSync(path.join(ROOT, 'src/plugin/DockShell.tsx'), 'utf-8')
-  // 面板渲染条件必须是 expanded，而不是旧的 layout.open
-  assert.match(shell, /const panel = expanded\b/, '面板渲染条件未改为 expanded，收起后仍会占宽度')
   assert.match(shell, /const expanded = layout\.open && layout\.visibility === 'open'/, 'expanded 判定缺失')
+  // 面板始终渲染，收起时靠 display:none 让出位置
+  assert.match(shell, /const panel = createElement\(/, '面板应始终渲染（收起时隐藏），否则会连带卸载 Vue 应用')
   assert.match(
     shell,
-    /if \(!mounted\)/,
-    '缺少暂停态分支：完全隐藏后仍会渲染活动栏，占住侧边',
+    /expanded \? null : \{ display: 'none' \}/,
+    '收起时未隐藏面板：不做 display:none 面板会继续占宽度',
   )
+  // 暂停态整块隐藏，但保留恢复入口
+  assert.match(shell, /paused \? \{ display: 'none' \} : null/, '暂停态未隐藏 dock')
+  assert.match(shell, /className: 'xds-restore'/, '缺少暂停态的恢复入口')
 })
 
 test('暂停态保留一个恢复入口（否则藏起来再也调不回来）', () => {
@@ -129,16 +135,22 @@ test('暂停态保留一个恢复入口（否则藏起来再也调不回来）',
   assert.match(restore, /opacity:\s*0\.35/, '恢复按钮底色应弱化，避免视觉上挡内容')
 })
 
-test('收起/暂停后 Vue 应用会卸载（不残留连接与定时器）', () => {
+/**
+ * 回归（2026-10-29）：收起/展开**不得**卸载 Vue 应用。
+ *
+ * 卸载会丢掉当前登录账号与在线列表，并且下次挂载会重新 init 传输层，
+ * 在服务端留下多条同账号会话 —— 表现就是「每个人发的消息都显示两遍」。
+ * 因此挂载 effect 只依赖 module，cleanup 仅在插件停用/重载时执行。
+ */
+test('收起/展开不卸载 Vue 应用（保留登录态与 WebSocket）', () => {
   const shell = fs.readFileSync(path.join(ROOT, 'src/plugin/DockShell.tsx'), 'utf-8')
-  // 挂载 effect 的依赖必须是 expanded，收起时触发 cleanup
   const mountEffect = shell.slice(shell.indexOf('// 把 Vue 应用挂到宿主节点'))
-  assert.match(
-    mountEffect,
-    /if \(!expanded \|\| !module/,
-    '挂载 effect 未用 expanded 判断，收起后 Vue 应用仍在运行',
-  )
-  assert.match(mountEffect, /\}, \[expanded, module\]\)/, 'effect 依赖未包含 expanded，收起不会触发卸载')
+  assert.doesNotMatch(mountEffect, /if \(!expanded/, '挂载 effect 不应依赖 expanded：收起会触发卸载')
+  assert.match(mountEffect, /\}, \[module\]\)/, 'effect 依赖应为 [module]：dep 里带 expanded 会导致收起即卸载')
+  // 仍需保证插件卸载时能干净退出
+  assert.match(mountEffect, /handleRef\.current\?\.unmount\(\)/, '插件卸载时仍需卸载 Vue 应用')
+  // 防重入：StrictMode 下 effect 会跑两遍
+  assert.match(mountEffect, /if \(handleRef\.current\) return/, '缺少重复挂载保护，StrictMode 下会挂两次')
 })
 
 test('左侧停靠时监听宿主侧栏收起状态', () => {

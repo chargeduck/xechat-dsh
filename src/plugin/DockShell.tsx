@@ -12,8 +12,9 @@
  * `top` 还要让出窗口标题栏高度，见 readTopInset）。
  *
  * 三态：open / collapsed / paused。
- * 收起与暂停都会让面板 DOM 消失、Vue 应用卸载、宽度归零，
- * 从而真正把位置还给宿主内容区，而不是靠置灰或遮挡。
+ * 收起与暂停只做视觉隐藏（面板 display:none、宽度归零），把位置还给宿主内容区，
+ * 但面板 DOM 与内部的 Vue 应用继续存活——卸载重建会丢登录态并新开 WebSocket，
+ * 同账号出现多条在线连接时服务端广播会被重复投递（表现为每条消息显示两遍）。
  */
 import { createElement, useEffect, useRef, useState } from 'react'
 import type { DockLayout, DockSide } from './layout.ts'
@@ -100,9 +101,9 @@ export function DockShell(_props: DockShellProps) {
   const layoutRef = useRef(layout)
   layoutRef.current = layout
 
-  /** 面板是否真正展开（paused 时整块不渲染）。 */
+  /** 面板是否真正展开（收起/暂停时为 false，此时面板只是 display:none）。 */
   const expanded = layout.open && layout.visibility === 'open'
-  /** 整块是否可见（collapsed 时保留活动栏）。 */
+  /** 整块是否可见（collapsed 时保留活动栏；paused 时整块隐藏）。 */
   const mounted = layout.visibility !== 'paused'
 
   const patch = (next: Partial<DockLayout>) => {
@@ -132,20 +133,44 @@ export function DockShell(_props: DockShellProps) {
     }
   }, [expanded, module])
 
-  // 把 Vue 应用挂到宿主节点；组件卸载时同步卸载（返回 cleanup）
+  // 把 Vue 应用挂到宿主节点。只挂一次，之后收起/展开不再卸载重建：
+  // 这里不依赖 expanded，cleanup 仅在 DockShell 自身卸载（插件停用/重载）时执行，
+  // 届时 Vue 应用会连同 WebSocket 一起干净退出。
   useEffect(() => {
-    if (!expanded || !module || !hostRef.current) return
+    if (!module || !hostRef.current) return
+    if (handleRef.current) return
     const el = hostRef.current
-    el.innerHTML = ''
-    try {
-      handleRef.current = module.mountXechat(el)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
-      return
+    let cancelled = false
+
+    /**
+     * 顺序：先初始化传输层，再挂载 Vue。
+     *
+     * ChatPanel 的 onMounted 会按上次会话发起登录，若此时传输层还没 init 完，
+     * init() 里的默认地址会把刚建立的登录连接顶掉，导致「刚恢复登录就又掉线」。
+     * init 最多等 3 秒（目标地址不可达时浏览器 TCP 超时很长），超时也照常挂载，
+     * 用户仍可在登录面板手动重连。
+     */
+    const boot = async () => {
+      try {
+        await Promise.race([
+          Promise.resolve(module.initXechat?.()),
+          new Promise((resolve) => setTimeout(resolve, 3000)),
+        ])
+      } catch (e) {
+        console.warn('[xechat-dsh] 传输层初始化失败', e)
+      }
+      if (cancelled) return
+      el.innerHTML = ''
+      try {
+        handleRef.current = module.mountXechat(el)
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e))
+      }
     }
-    void module.initXechat?.().catch(() => {})
+    void boot()
 
     return () => {
+      cancelled = true
       try {
         handleRef.current?.unmount()
       } catch (e) {
@@ -154,7 +179,7 @@ export function DockShell(_props: DockShellProps) {
       handleRef.current = null
       el.innerHTML = ''
     }
-  }, [expanded, module])
+  }, [module])
 
   // 顶部安全距离随窗口状态变化（进入/退出全屏、标题栏高度改变）
   useEffect(() => {
@@ -231,14 +256,12 @@ export function DockShell(_props: DockShellProps) {
     ...(topInset > 0 ? { top: topInset } : null),
   }
 
-  // 暂停态：整块不渲染。仍输出一份隐藏的恢复条，
+  // 暂停态：dock 整块隐藏，只在侧边留一份恢复条，
   // 否则用户把面板藏起来后没有任何入口能调回来。
-  if (!mounted) {
-    return createElement(
-      'div',
-      { 'data-xechat-dsh': '' },
-      createElement(DockStyle),
-      createElement(
+  // 注意：这里只做视觉隐藏，面板 DOM 与 Vue 应用继续存活（见下方 mount effect）。
+  const paused = !mounted
+  const restoreEntry = paused
+    ? createElement(
         'div',
         {
           className: 'xds-restore',
@@ -259,9 +282,8 @@ export function DockShell(_props: DockShellProps) {
           },
           createElement(Icon, { path: EXPAND_ICON }),
         ),
-      ),
-    )
-  }
+      )
+    : null
 
   const activity = createElement(
     'div',
@@ -314,59 +336,69 @@ export function DockShell(_props: DockShellProps) {
     ),
   )
 
-  // 面板只在 expanded 时渲染：收起态连 DOM 都不留，
-  // 宽度归零、Vue 应用也随 effect 清理卸载，真正让出位置。
-  const panel = expanded
-    ? createElement(
-        'div',
-        {
-          className: 'xds-panel',
-          style: { width: layout.width, maxWidth: 'calc(100vw - 44px)' },
-        },
-        createElement('div', {
-          className: 'xds-resizer',
-          style: {
-            position: 'absolute',
-            left: side === 'right' ? -5 : undefined,
-            right: side === 'left' ? -5 : undefined,
-            top: 0,
-            bottom: 0,
-          },
-          'data-dragging': dragging ? 'true' : 'false',
-          onPointerDown: (e: React.PointerEvent<HTMLDivElement>) => {
-            e.preventDefault()
-            dragStart.current = { x: e.clientX, width: layout.width }
-            setDragging(true)
-          },
-        }),
-        createElement(
-          'div',
-          { className: 'xds-panel-body' },
-          error
-            ? createElement(
-                'div',
-                { className: 'xds-status' },
-                createElement('div', null, 'xechat 加载失败', createElement('code', null, error)),
-              )
-            : createElement('div', {
-                ref: hostRef,
-                style: { width: '100%', height: '100%' },
-                'data-xechat-host': '',
-              }),
-        ),
-      )
-    : null
+  // 面板始终渲染，收起时仅隐藏。
+  //
+  // 旧实现用 `expanded ? panel : null`，收起就把面板 DOM 连同 Vue 应用一起销毁，
+  // 再次展开时重新 mount → 重建 Pinia、重新 init 传输层。后果有两个：
+  //   1. 登录态（在内存里的当前账号、在线列表、历史消息）全部丢失；
+  //   2. 每次重挂都新开一条 WebSocket，旧连接仍在服务端保留会话，
+  //      同账号出现多条在线连接，服务端广播时每条连接都收到一次 → 消息重复显示。
+  // 现在收起只是 display:none：位置照样让给宿主内容区，状态与连接都留着。
+  const panel = createElement(
+    'div',
+    {
+      className: 'xds-panel',
+      style: {
+        width: layout.width,
+        maxWidth: 'calc(100vw - 44px)',
+        ...(expanded ? null : { display: 'none' }),
+      },
+    },
+    createElement('div', {
+      className: 'xds-resizer',
+      style: {
+        position: 'absolute',
+        left: side === 'right' ? -5 : undefined,
+        right: side === 'left' ? -5 : undefined,
+        top: 0,
+        bottom: 0,
+      },
+      'data-dragging': dragging ? 'true' : 'false',
+      onPointerDown: (e: React.PointerEvent<HTMLDivElement>) => {
+        e.preventDefault()
+        dragStart.current = { x: e.clientX, width: layout.width }
+        setDragging(true)
+      },
+    }),
+    createElement(
+      'div',
+      { className: 'xds-panel-body' },
+      error
+        ? createElement(
+            'div',
+            { className: 'xds-status' },
+            createElement('div', null, 'xechat 加载失败', createElement('code', null, error)),
+          )
+        : createElement('div', {
+            ref: hostRef,
+            style: { width: '100%', height: '100%' },
+            'data-xechat-host': '',
+          }),
+    ),
+  )
 
   return createElement(
     'div',
     { 'data-xechat-dsh': '' },
     createElement(DockStyle),
+    restoreEntry,
     createElement(
       'div',
       {
         className: 'xds-root',
         'data-side': side,
-        style: geometry as React.CSSProperties,
+        // paused 时整块不显示，但节点保留，避免 Vue 应用被连带移出文档
+        style: { ...geometry, ...(paused ? { display: 'none' } : null) } as React.CSSProperties,
       },
       activity,
       panel,

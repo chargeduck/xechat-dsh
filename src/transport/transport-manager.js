@@ -17,6 +17,42 @@ class TransportManager {
     config = config || {}
 
     const wsUrl = config.wsUrl || this._readStoredWsUrl() || 'ws://127.0.0.1:1025/xechat'
+
+    /*
+     * 幂等初始化。
+     *
+     * 面板收起/展开、插件热重载都会再次调用 init()。旧实现每次都 new 一个
+     * WebSocketTransport 却从不关闭上一个，于是浏览器里同时挂着多条 WebSocket：
+     * 旧连接上的账号会话仍然有效，服务端广播时会把同一条消息推给这个账号的
+     * 每一条连接，再经共享的事件表重复投递到 UI —— 表现就是「每个人发的消息都显示两遍」。
+     *
+     * 因此：地址相同就复用现有实例（没连上则补一次 connect），地址变化才断开重建。
+     */
+    if (this._transport) {
+      // 调用方显式指定了另一个地址才考虑重建；未指定时一律复用当前实例。
+      //
+      // 这一条很关键：应用挂载时 ChatPanel 会先按上次会话登录（连到鱼塘地址），
+      // 紧接着 initXechat() 才调用 init({})。若这里拿「存储的地址」去比对，
+      // 两个地址不一致就会把刚建立的登录连接关掉重建，登录直接白做。
+      const sameTarget = !config.wsUrl || this._transport.wsUrl === wsUrl
+      if (sameTarget) {
+        if (!this._transport.isOpen) {
+          console.log('[Transport][init] 复用已有实例并重新连接, url=' + this._transport.wsUrl)
+          await this._transport.connect()
+        } else {
+          console.log('[Transport][init] 复用已有连接, url=' + this._transport.wsUrl)
+        }
+        return
+      }
+      console.log('[Transport][init] 地址变化，关闭旧连接: ' + this._transport.wsUrl + ' -> ' + wsUrl)
+      try {
+        this._transport.disconnect()
+      } catch (e) {
+        /* ignore */
+      }
+      this._transport = null
+    }
+
     console.log('[Transport][init] 创建 WebSocketTransport, url=' + wsUrl)
     this._transport = new WebSocketTransport(wsUrl)
 
@@ -61,6 +97,16 @@ class TransportManager {
   get wsUrl() {
     if (this._transport && this._transport.wsUrl) return this._transport.wsUrl
     return ''
+  }
+
+  /** 连接是否已就绪 */
+  get isOpen() {
+    return !!(this._transport && this._transport.isOpen)
+  }
+
+  /** 是否已登录（服务端侧存在本连接的在线会话） */
+  get loggedIn() {
+    return !!(this._transport && this._transport.loggedIn)
   }
 
   execCommand(cmd) {
