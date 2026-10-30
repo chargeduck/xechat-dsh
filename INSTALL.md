@@ -20,7 +20,16 @@ DSH（DeepSeek Harness）侧边栏聊天插件。本文分「普通用户安装�
 预构建包已把 Vue 应用、CSS 与插件壳全部打进去，**安装时不需要执行任何构建脚本**，
 因此可以跳过 pnpm ≥10 的 `allowBuilds` 构建授权步骤。
 
-### 最快方式：一键脚本
+### 最快方式：npm
+
+包里已经是预构建产物，装的时候不会跑任何构建脚本：
+
+```sh
+dsh plugin --profile web add xechat-dsh        # Web
+dsh plugin --profile desktop add xechat-dsh    # 桌面端（Electron）
+```
+
+### 次快方式：一键脚本
 
 仓库根目录有三个等价脚本，按你的系统选一个。它们会**先检查环境、再安装、最后用
 dsh 自己的解析器验证**，任何一步失败都会明确告诉你要改什么。

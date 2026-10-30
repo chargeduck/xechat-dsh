@@ -18,7 +18,22 @@
 
 ## 安装
 
-一键脚本（推荐，会校验环境并验证安装结果）：
+已发布到 npm，一条命令装好（装的是预构建产物，不会触发任何构建脚本）：
+
+```sh
+dsh plugin --profile web add xechat-dsh
+
+# 桌面端（Electron）把 profile 换成 desktop
+dsh plugin --profile desktop add xechat-dsh
+```
+
+不经过 npm，也可以直接装 GitHub Release 里同一份 tarball：
+
+```sh
+dsh plugin --profile web add https://github.com/chargeduck/xechat-dsh/releases/download/v0.1.1/xechat-dsh.tgz
+```
+
+仓库根目录另有一键脚本，会校验环境并验证安装结果：
 
 ```sh
 # macOS / Linux
@@ -28,20 +43,19 @@
 install.bat
 ```
 
-或直接用 dsh 命令：
+从源码安装（构建产物已提交进仓库，拉下来即可运行）：
 
 ```sh
-# 预构建包，跳过构建授权步骤
-dsh plugin --profile web add https://github.com/chargeduck/xechat-dsh/releases/latest/download/xechat-dsh.tgz
-
-# 从源码安装
 dsh plugin --profile web add https://github.com/chargeduck/xechat-dsh
+```
 
-# 本地开发时链接源码目录
+本地开发时链接源码目录：
+
+```sh
 dsh plugin --profile web add link:/absolute/path/to/xechat-dsh
 ```
 
-安装后**重启 `dsh web`** 并刷新页面。侧边栏出现在视口右侧，点击活动栏第一条图标开合。
+安装后**重启 `dsh web`**（桌面端重启应用）并刷新页面。侧边栏出现在视口右侧，点击活动栏第一条图标开合。
 
 详细说明见 [INSTALL.md](./INSTALL.md)。
 
