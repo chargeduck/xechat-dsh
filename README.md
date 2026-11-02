@@ -1,5 +1,7 @@
 # xechat-dsh
 
+[![dshfind](https://dshfind.com/api/badge/chargeduck/xechat-dsh?lang=zh)](https://dshfind.com/zh/plugins/chargeduck/xechat-dsh?ref=badge) [![Awesome DSH Plugin](https://awesome-dsh-plugin.com/badge.svg)](https://awesome-dsh-plugin.com)
+
 > XEChat 的 DeepSeek Harness 侧边栏客户端：可停靠的摸鱼聊天面板，写代码时鱼塘不掉线。
 
 `xechat-dsh` 是 `xechat-web` 的 DSH 移植版。与原版不同，它不依赖任何 IDE 插件宿主，
