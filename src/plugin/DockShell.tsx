@@ -18,9 +18,20 @@
  */
 import { createElement, useEffect, useRef, useState } from 'react'
 import type { DockLayout, DockSide } from './layout.ts'
-import { clampWidth, dockGeometry, loadLayout, saveLayout } from './layout.ts'
+import {
+  clampHeight,
+  clampWidth,
+  dockGeometry,
+  loadLayout,
+  MIN_HEIGHT,
+  resolveHeight,
+  saveLayout,
+} from './layout.ts'
 import { loadXechatApp, type XechatAppHandle, type XechatAppModule } from './app-loader.ts'
 import { DOCK_CSS } from './styles.ts'
+
+/** 与 CSS 的 --xds-inset-bottom 保持一致：拖拽高度时按同一份余量算可用空间。 */
+const BOTTOM_INSET = 8
 
 /** 活动栏图标（stroke 风格，跟随 currentColor）。 */
 function Icon({ path }: { path: string }) {
@@ -95,11 +106,31 @@ export function DockShell(_props: DockShellProps) {
    * 因此监听 resize 重新读取，而不是只在初始化时算一次。
    */
   const [topInset, setTopInset] = useState<number>(readTopInset)
+  /**
+   * 视口高度。拖拽高度时要用它算「最矮/最高能拖到哪」，
+   * 窗口缩放后已存的像素高度也可能超出可用区，所以同样跟着 resize 走。
+   */
+  const [viewportHeight, setViewportHeight] = useState<number>(() =>
+    typeof window === 'undefined' ? 0 : window.innerHeight,
+  )
   const hostRef = useRef<HTMLDivElement | null>(null)
+  /** dock 根节点：拖拽高度时量它当前的实际高度（铺满态没有存像素值）。 */
+  const rootRef = useRef<HTMLDivElement | null>(null)
   const handleRef = useRef<XechatAppHandle | null>(null)
   const dragStart = useRef<{ x: number; width: number } | null>(null)
+  const heightDragStart = useRef<{ y: number; height: number } | null>(null)
+  const [resizingHeight, setResizingHeight] = useState(false)
   const layoutRef = useRef(layout)
   layoutRef.current = layout
+
+  /**
+   * 可用的最大高度 = 视口高度 - 标题栏下移量 - 底部留白。
+   * 已经比 MIN_HEIGHT 还矮时按下限算（面板再压就没法用了）。
+   */
+  const availableHeight = Math.max(
+    MIN_HEIGHT,
+    (viewportHeight || 800) - topInset - BOTTOM_INSET,
+  )
 
   /** 面板是否真正展开（收起/暂停时为 false，此时面板只是 display:none）。 */
   const expanded = layout.open && layout.visibility === 'open'
@@ -181,9 +212,12 @@ export function DockShell(_props: DockShellProps) {
     }
   }, [module])
 
-  // 顶部安全距离随窗口状态变化（进入/退出全屏、标题栏高度改变）
+  // 顶部安全距离与视口高度随窗口状态变化（进入/退出全屏、标题栏高度改变、窗口缩放）
   useEffect(() => {
-    const sync = () => setTopInset(readTopInset())
+    const sync = () => {
+      setTopInset(readTopInset())
+      if (typeof window !== 'undefined') setViewportHeight(window.innerHeight)
+    }
     sync()
     window.addEventListener('resize', sync)
     return () => window.removeEventListener('resize', sync)
@@ -245,8 +279,39 @@ export function DockShell(_props: DockShellProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dragging])
 
+  /**
+   * 拖拽调高。
+   *
+   * 锚定的是面板**底边**（dock 顶边固定，跟着标题栏走），所以 clientY 变大
+   * 就是变高。铺满态下没有存像素值，按下时先量一次当前实际高度作为起点，
+   * 这样第一次拖动不会「跳」到某个默认值。
+   */
+  useEffect(() => {
+    if (!resizingHeight) return
+    const onMove = (e: PointerEvent) => {
+      const start = heightDragStart.current
+      if (!start) return
+      patch({ height: clampHeight(start.height + (e.clientY - start.y), availableHeight) })
+    }
+    const onUp = () => {
+      heightDragStart.current = null
+      setResizingHeight(false)
+    }
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+    return () => {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+    }
+    // patch 依赖 layoutRef，无需列入
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resizingHeight, availableHeight])
+
   const side: DockSide = layout.side
   const activityWidth = 44
+  // 用户在底部拖过就按存下来的像素高度，否则铺满（height=null 交给 CSS）。
+  // resolveHeight 还会按当前视口再夹一次，窗口变矮时不会把面板顶出可视区。
+  const renderedHeight = resolveHeight(layout.height, availableHeight)
   // 贴在 slot 容器的左/右边缘（容器铺满视口，position:absolute 生效）。
   // dockGeometry 同时给出宽度与贴边方向，保持与单测一致的单一真相。
   // 再叠加顶部安全距离：运行时读到的值优先于静态 CSS 声明，
@@ -254,6 +319,8 @@ export function DockShell(_props: DockShellProps) {
   const geometry: React.CSSProperties = {
     ...(dockGeometry(layout, activityWidth) as React.CSSProperties),
     ...(topInset > 0 ? { top: topInset } : null),
+    // 固定高度时取消 bottom 拉伸，改由 height 决定（top 仍然是锚点）
+    ...(renderedHeight !== null ? { bottom: 'auto', height: renderedHeight } : null),
   }
 
   // 暂停态：dock 整块隐藏，只在侧边留一份恢复条，
@@ -385,6 +452,26 @@ export function DockShell(_props: DockShellProps) {
             'data-xechat-host': '',
           }),
     ),
+    // 底部拖拽条：向上/向下拖调整高度，双击恢复铺满。
+    // 放在面板内部（靠 CSS 绝对定位贴底边），不参与 flex 计算，避免挤压内容区。
+    createElement('div', {
+      className: 'xds-resizer-h',
+      title: '拖动调整高度（双击恢复铺满）',
+      'aria-label': '拖动调整高度',
+      role: 'separator',
+      'data-dragging': resizingHeight ? 'true' : 'false',
+      onPointerDown: (e: React.PointerEvent<HTMLDivElement>) => {
+        e.preventDefault()
+        // 铺满态没有像素值，先量一次当前实际高度当起点，避免第一次拖动时跳变
+        const rect = rootRef.current?.getBoundingClientRect()
+        heightDragStart.current = {
+          y: e.clientY,
+          height: rect ? Math.round(rect.height) : availableHeight,
+        }
+        setResizingHeight(true)
+      },
+      onDoubleClick: () => patch({ height: null }),
+    }),
   )
 
   return createElement(
@@ -396,6 +483,7 @@ export function DockShell(_props: DockShellProps) {
       'div',
       {
         className: 'xds-root',
+        ref: rootRef,
         'data-side': side,
         // paused 时整块不显示，但节点保留，避免 Vue 应用被连带移出文档
         style: { ...geometry, ...(paused ? { display: 'none' } : null) } as React.CSSProperties,

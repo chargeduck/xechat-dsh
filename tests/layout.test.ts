@@ -6,13 +6,16 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 
 import {
+  clampHeight,
   clampWidth,
   DEFAULT_LAYOUT,
   dockGeometry,
   loadLayout,
   MAX_WIDTH,
+  MIN_HEIGHT,
   MIN_WIDTH,
   parseLayout,
+  resolveHeight,
   saveLayout,
 } from '../src/plugin/layout.ts'
 
@@ -53,8 +56,35 @@ test('parseLayout 对非法输入逐字段回落', () => {
     open: false,
     visibility: 'collapsed',
     width: 500,
+    height: null,
     autoHide: 'edge',
   })
+})
+
+test('clampHeight 夹到合法区间，并跟随可用高度', () => {
+  assert.equal(clampHeight(500), 500)
+  assert.equal(clampHeight(10), MIN_HEIGHT)
+  // 超过可用高度时按可用高度收，但不会低于下限
+  assert.equal(clampHeight(2000, 600), 600)
+  assert.equal(clampHeight(2000, 100), MIN_HEIGHT)
+  assert.equal(clampHeight(Number.NaN), MIN_HEIGHT)
+  assert.equal(clampHeight(400.7), 401)
+})
+
+test('resolveHeight：null 表示铺满，数值按当前视口再夹一次', () => {
+  assert.equal(resolveHeight(null, 900), null)
+  assert.equal(resolveHeight(520, 900), 520)
+  // 窗口变矮：渲染值收窄，但存储值本身不变（由调用方持有）
+  assert.equal(resolveHeight(900, 500), 500)
+  assert.equal(resolveHeight(120, 900), MIN_HEIGHT)
+})
+
+test('parseLayout 修正越界高度并保留合法值', () => {
+  assert.equal(parseLayout({ height: 600 }).height, 600)
+  assert.equal(parseLayout({ height: 10 }).height, MIN_HEIGHT)
+  // 缺省/非法 → 铺满
+  assert.equal(parseLayout({}).height, null)
+  assert.equal(parseLayout({ height: 'tall' }).height, null)
 })
 
 test('parseLayout 兼容旧版只有 open 的存储', () => {
@@ -92,7 +122,7 @@ test('loadLayout 在存储损坏时返回默认值', () => {
 test('loadLayout 读取已保存布局', () => {
   const store = memoryStorage()
   saveLayout(
-    { side: 'left', open: false, visibility: 'collapsed', width: 420, autoHide: 'edge' },
+    { side: 'left', open: false, visibility: 'collapsed', width: 420, height: null, autoHide: 'edge' },
     store,
   )
   assert.deepEqual(loadLayout(store), {
@@ -100,8 +130,15 @@ test('loadLayout 读取已保存布局', () => {
     open: false,
     visibility: 'collapsed',
     width: 420,
+    height: null,
     autoHide: 'edge',
   })
+})
+
+test('高度持久化后能原样读回', () => {
+  const store = memoryStorage()
+  saveLayout({ ...DEFAULT_LAYOUT, height: 560 }, store)
+  assert.equal(loadLayout(store).height, 560)
 })
 
 test('saveLayout 写入失败不抛错', () => {

@@ -147,6 +147,8 @@ export const DOCK_CSS = `
   border-radius: 10px;
   /* 高度由容器给，内部再按 flex 分配（见 .xds-panel-body 的 min-height:0） */
   min-height: 0;
+  /* 宽度/高度两个拖拽条都靠绝对定位贴边，锚点放在面板自身 */
+  position: relative;
 }
 .xds-root[data-side='right'] .xds-panel { border-left: 1px solid var(--xds-border); }
 .xds-root[data-side='left'] .xds-panel { border-right: 1px solid var(--xds-border); }
@@ -171,6 +173,43 @@ export const DOCK_CSS = `
   transition: background 0.15s;
 }
 .xds-resizer:hover, .xds-resizer[data-dragging='true'] { background: var(--xds-accent); }
+
+/*
+ * 拖拽调高热区：贴面板底边整条。
+ * 只有 6px 高，视觉上是一道很淡的抓握条，hover/拖拽时才染强调色——
+ * 常驻高亮会让人以为面板下方还有一块内容。
+ */
+.xds-resizer-h {
+  pointer-events: auto;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 6px;
+  cursor: row-resize;
+  background: transparent;
+  transition: background 0.15s;
+  z-index: 5;
+}
+/* 中间那截短横线：给出「这里可以抓」的暗示 */
+.xds-resizer-h::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 32px;
+  height: 2px;
+  transform: translate(-50%, -50%);
+  border-radius: 1px;
+  background: var(--xds-text-dim);
+  opacity: 0.3;
+  transition: opacity 0.15s, background 0.15s;
+}
+.xds-resizer-h:hover, .xds-resizer-h[data-dragging='true'] { background: var(--xds-accent); }
+.xds-resizer-h:hover::after, .xds-resizer-h[data-dragging='true']::after {
+  background: #fff;
+  opacity: 0.85;
+}
 
 /* 加载/错误占位 */
 .xds-status {

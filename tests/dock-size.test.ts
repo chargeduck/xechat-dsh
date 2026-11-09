@@ -91,6 +91,31 @@ test('内容面板允许在容器内收缩（min-height: 0）', () => {
   assert.match(panel, /min-height:\s*0/, 'panel 缺少 min-height: 0，flex 子项无法收缩会撑破容器')
 })
 
+/**
+ * 回归（2026-11-09）：面板高度必须能让用户自己拖。
+ *
+ * 背景：面板默认铺满可用高度，在桌面端「一打开就顶满」很压人。
+ * 现在底部有一条 6px 的抓握条，上下拖即可改高度，双击恢复铺满。
+ * 高度存 localStorage（layout.height，null = 铺满）。
+ */
+test('面板高度可拖拽：底部热区 + 双击恢复铺满', () => {
+  const panel = ruleBody('.xds-panel')
+  assert.match(
+    panel,
+    /position:\s*relative/,
+    '面板必须自身作为定位锚点：两条拖拽条都是 absolute 贴边，锚到 root 上会跑到活动栏那侧',
+  )
+  const resizerH = ruleBody('.xds-resizer-h')
+  assert.match(resizerH, /cursor:\s*row-resize/, '高度热区没有行向缩放光标，用户看不出能上下拖')
+  assert.match(resizerH, /bottom:\s*0/, '高度热区未贴住面板底边')
+  assert.match(resizerH, /position:\s*absolute/, '高度热区应为绝对定位，避免参与 flex 挤压内容区')
+
+  const shell = fs.readFileSync(path.join(ROOT, 'src/plugin/DockShell.tsx'), 'utf-8')
+  assert.match(shell, /className: 'xds-resizer-h'/, '缺少高度拖拽热区')
+  assert.match(shell, /patch\(\{ height: null \}\)/, '缺少「双击恢复铺满」的入口')
+  assert.match(shell, /resolveHeight\(layout\.height/, '渲染高度未按当前视口夹取，窗口变矮会把面板顶出可视区')
+})
+
 test('运行时也会写入 top（令牌晚于挂载发布时兜底）', () => {
   const shell = fs.readFileSync(path.join(ROOT, 'src/plugin/DockShell.tsx'), 'utf-8')
   assert.match(

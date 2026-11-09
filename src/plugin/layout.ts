@@ -30,6 +30,13 @@ export interface DockLayout {
   visibility: DockVisibility
   /** 内容区宽度，像素 */
   width: number
+  /**
+   * 内容区高度，像素；`null` = 铺满可用高度（默认，跟随窗口）。
+   *
+   * 用户把底部边缘往上拖之后才会有具体数值。之所以用 null 而不是某个哨兵值，
+   * 是为了让「铺满」在窗口缩放时继续自适应——存成像素反而会在换屏后留白或溢出。
+   */
+  height: number | null
   autoHide: AutoHideMode
 }
 
@@ -37,11 +44,20 @@ export const MIN_WIDTH = 280
 export const MAX_WIDTH = 720
 export const DEFAULT_WIDTH = 380
 
+/** 拖拽高度的下限：再矮就连输入框和消息都放不下了。 */
+export const MIN_HEIGHT = 240
+/**
+ * 拖拽高度的硬上限。真实上限还要按视口高度再夹一次（见 resolveHeight），
+ * 这里的值只用于拦住明显不可能的数字。
+ */
+export const MAX_HEIGHT = 4000
+
 export const DEFAULT_LAYOUT: DockLayout = {
   side: 'right',
   open: true,
   visibility: 'open',
   width: DEFAULT_WIDTH,
+  height: null,
   autoHide: 'off',
 }
 
@@ -51,6 +67,29 @@ const STORAGE_KEY = 'xechat-dsh:layout'
 export function clampWidth(value: number): number {
   if (!Number.isFinite(value)) return DEFAULT_WIDTH
   return Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, Math.round(value)))
+}
+
+/**
+ * 把任意输入夹到合法高度区间。
+ *
+ * `available` 是当前可用高度（视口减去标题栏与底部留白）。传 0 或不传时
+ * 只按 MIN/MAX_HEIGHT 夹。返回值一定 ≥ MIN_HEIGHT —— 视口比下限还矮时
+ * 宁可溢出也不把面板压成一条缝（此时面板本来也没法用）。
+ */
+export function clampHeight(value: number, available = MAX_HEIGHT): number {
+  const upper = Number.isFinite(available) && available > 0 ? Math.max(MIN_HEIGHT, available) : MAX_HEIGHT
+  if (!Number.isFinite(value)) return MIN_HEIGHT
+  return Math.min(Math.min(MAX_HEIGHT, upper), Math.max(MIN_HEIGHT, Math.round(value)))
+}
+
+/**
+ * 实际渲染高度：null 表示铺满（交给 CSS），数值则再按当前视口夹一次。
+ * 窗口变小后旧的高度不能把面板顶出可视区，但也不改写存储值——
+ * 用户把窗口拉回来时应当恢复成他自己拖的那个高度。
+ */
+export function resolveHeight(height: number | null, available: number): number | null {
+  if (height === null) return null
+  return clampHeight(height, available)
 }
 
 /**
@@ -72,6 +111,8 @@ export function parseLayout(raw: unknown): DockLayout {
     open: visibility !== 'collapsed',
     visibility,
     width: typeof source.width === 'number' ? clampWidth(source.width) : DEFAULT_LAYOUT.width,
+    // 旧版没有 height：缺省即「铺满」，与升级前行为一致
+    height: typeof source.height === 'number' ? clampHeight(source.height) : null,
     autoHide: source.autoHide === 'edge' ? 'edge' : 'off',
   }
 }
