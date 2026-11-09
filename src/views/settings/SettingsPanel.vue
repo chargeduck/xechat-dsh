@@ -4,6 +4,47 @@
       <span class="panel-title">设置</span>
     </div>
     <div class="settings-body">
+      <!-- 面板尺寸：与 DSH 外壳（DockShell）通过 window 事件双向同步 -->
+      <div v-if="isDsh" class="setting-block">
+        <div class="block-title">面板尺寸</div>
+        <div class="setting-inline">
+          <div class="inline-label"><span>宽度 (px)</span></div>
+          <el-input
+            v-model="dockWidthDraft"
+            type="number"
+            :min="dockLimits.minWidth"
+            :max="dockLimits.maxWidth"
+            placeholder="380"
+            @focus="dockEditing = true"
+            @blur="onDockInputBlur"
+            @change="applyDockSize"
+            @keyup.enter="applyDockSize"
+          />
+        </div>
+        <div class="setting-inline">
+          <div class="inline-label"><span>高度 (px)</span></div>
+          <el-input
+            v-model="dockHeightDraft"
+            type="number"
+            :min="dockLimits.minHeight"
+            :max="dockLimits.maxHeight"
+            placeholder="留空 = 铺满"
+            @focus="dockEditing = true"
+            @blur="onDockInputBlur"
+            @change="applyDockSize"
+            @keyup.enter="applyDockSize"
+          />
+        </div>
+        <div class="setting-hint">
+          宽度 {{ dockLimits.minWidth }}–{{ dockLimits.maxWidth }} px，高度 {{ dockLimits.minHeight }}–{{ dockLimits.maxHeight }} px；
+          高度留空表示铺满窗口。回车或失焦立即生效。<br />
+          也可以拖动面板左边缘（调宽）、上边缘或下边缘（调高）的拖拽条。
+        </div>
+        <div class="setting-row">
+          <el-button size="small" @click="resetDockSize">恢复默认</el-button>
+          <el-button size="small" @click="openDockSizePanel">在侧栏打开尺寸浮层</el-button>
+        </div>
+      </div>
       <div class="setting-row">
         <span>主题</span>
         <el-switch
@@ -172,6 +213,81 @@ import {
 
 const settingsStore = useSettingsStore()
 
+/**
+ * ===== 面板尺寸（与 DSH 外壳 DockShell 双向同步）=====
+ *
+ * Vue 应用由 app-loader 以 Blob URL 注入，与 DockShell 在同一个 window、同一份
+ * localStorage，不是 iframe，所以用 CustomEvent 就够，不必引入共享模块：
+ *   - 外壳广播 'xechat-dsh:layout'  -> 设置页回显实际生效值
+ *   - 设置页派发 'xechat-dsh:set-size' -> 外壳夹取后写入布局并持久化
+ * 冷启动时外壳的广播可能早于本组件挂载，因此额外从 localStorage 读一次。
+ */
+const DOCK_LAYOUT_KEY = 'xechat-dsh:layout'
+const DOCK_EVENT_LAYOUT = 'xechat-dsh:layout'
+const DOCK_EVENT_SET = 'xechat-dsh:set-size'
+const DOCK_EVENT_OPEN = 'xechat-dsh:open-size-settings'
+const isDsh = typeof window !== 'undefined' && (
+  !!window.__XECHAT_DSH_EMBEDDED__ ||
+  (typeof document !== 'undefined' && !!document.querySelector('[data-xechat-dsh]'))
+)
+
+const dockLimits = ref({ minWidth: 280, maxWidth: 720, minHeight: 240, maxHeight: 800 })
+const dockWidthDraft = ref('380')
+const dockHeightDraft = ref('')
+/** 正在输入时不回填广播，避免打字打到一半被拖动事件冲掉 */
+const dockEditing = ref(false)
+
+function onDockLayoutEvent(e) {
+  const d = e && e.detail
+  if (!d) return
+  if (typeof d.minWidth === 'number') {
+    dockLimits.value = {
+      minWidth: d.minWidth, maxWidth: d.maxWidth,
+      minHeight: d.minHeight, maxHeight: d.maxHeight
+    }
+  }
+  if (dockEditing.value) return
+  if (typeof d.width === 'number') dockWidthDraft.value = String(d.width)
+  dockHeightDraft.value = (d.height === null || d.height === undefined) ? '' : String(d.height)
+}
+
+function onDockInputBlur() {
+  dockEditing.value = false
+  applyDockSize()
+}
+
+function applyDockSize() {
+  const w = String(dockWidthDraft.value).trim()
+  const h = String(dockHeightDraft.value).trim()
+  window.dispatchEvent(new CustomEvent(DOCK_EVENT_SET, {
+    detail: {
+      width: w === '' ? undefined : Number(w),
+      height: h === '' ? null : Number(h)
+    }
+  }))
+  // 外壳把夹取后的真实值广播回来后，输入框会显示实际生效的数字
+}
+
+function resetDockSize() {
+  dockWidthDraft.value = '380'
+  dockHeightDraft.value = ''
+  window.dispatchEvent(new CustomEvent(DOCK_EVENT_SET, { detail: { width: 380, height: null } }))
+}
+
+function openDockSizePanel() {
+  window.dispatchEvent(new CustomEvent(DOCK_EVENT_OPEN))
+}
+
+function readDockLayoutFromStorage() {
+  try {
+    const raw = localStorage.getItem(DOCK_LAYOUT_KEY)
+    if (!raw) return
+    const l = JSON.parse(raw)
+    if (typeof l.width === 'number') dockWidthDraft.value = String(l.width)
+    dockHeightDraft.value = typeof l.height === 'number' ? String(l.height) : ''
+  } catch (e) { /* 存储损坏时用默认值 */ }
+}
+
 const pluginOpacity = computed({
   get: () => settingsStore.pluginOpacity,
   set: (val) => settingsStore.setPluginOpacity(val)
@@ -256,10 +372,15 @@ function onShortcutKeydown(e) {
 
 onMounted(() => {
   window.addEventListener('keydown', onShortcutKeydown, true)
+  if (isDsh) {
+    window.addEventListener(DOCK_EVENT_LAYOUT, onDockLayoutEvent)
+    readDockLayoutFromStorage()
+  }
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onShortcutKeydown, true)
+  if (isDsh) window.removeEventListener(DOCK_EVENT_LAYOUT, onDockLayoutEvent)
   window.__xechatShortcutRecording = false
 })
 

@@ -7,6 +7,7 @@ import assert from 'node:assert/strict'
 
 import {
   clampHeight,
+  clampTopOffset,
   clampWidth,
   DEFAULT_LAYOUT,
   dockGeometry,
@@ -15,6 +16,7 @@ import {
   MIN_HEIGHT,
   MIN_WIDTH,
   parseLayout,
+  resizeFromEdge,
   resolveHeight,
   saveLayout,
 } from '../src/plugin/layout.ts'
@@ -57,6 +59,7 @@ test('parseLayout 对非法输入逐字段回落', () => {
     visibility: 'collapsed',
     width: 500,
     height: null,
+    topOffset: 0,
     autoHide: 'edge',
   })
 })
@@ -122,7 +125,15 @@ test('loadLayout 在存储损坏时返回默认值', () => {
 test('loadLayout 读取已保存布局', () => {
   const store = memoryStorage()
   saveLayout(
-    { side: 'left', open: false, visibility: 'collapsed', width: 420, height: null, autoHide: 'edge' },
+    {
+      side: 'left',
+      open: false,
+      visibility: 'collapsed',
+      width: 420,
+      height: null,
+      topOffset: 0,
+      autoHide: 'edge',
+    },
     store,
   )
   assert.deepEqual(loadLayout(store), {
@@ -131,6 +142,7 @@ test('loadLayout 读取已保存布局', () => {
     visibility: 'collapsed',
     width: 420,
     height: null,
+    topOffset: 0,
     autoHide: 'edge',
   })
 })
@@ -139,6 +151,72 @@ test('高度持久化后能原样读回', () => {
   const store = memoryStorage()
   saveLayout({ ...DEFAULT_LAYOUT, height: 560 }, store)
   assert.equal(loadLayout(store).height, 560)
+})
+
+test('顶边偏移随布局持久化，兼容旧版存储', () => {
+  const store = memoryStorage()
+  saveLayout({ ...DEFAULT_LAYOUT, height: 560, topOffset: 120 }, store)
+  assert.equal(loadLayout(store).topOffset, 120)
+  // 旧版存储没有该字段：缺省 0 = 顶边贴标题栏下沿
+  assert.equal(parseLayout({ height: 560 }).topOffset, 0)
+  // 非法值不污染布局
+  assert.equal(parseLayout({ height: 560, topOffset: 'down' }).topOffset, 0)
+  assert.equal(parseLayout({ height: 560, topOffset: -50 }).topOffset, 0)
+  // 铺满态忽略残留偏移（例如双击恢复铺满前被中断的旧存储）
+  assert.equal(parseLayout({ height: null, topOffset: 120 }).topOffset, 0)
+})
+
+test('clampTopOffset 保证顶边偏移不把面板底边顶出可用区', () => {
+  assert.equal(clampTopOffset(0, 560, 800), 0)
+  assert.equal(clampTopOffset(120, 560, 800), 120)
+  // 可用 800、面板 560 → 偏移最多 240
+  assert.equal(clampTopOffset(400, 560, 800), 240)
+  // 窗口变矮后旧偏移被收回，但存储值本身不变（由调用方持有）
+  assert.equal(clampTopOffset(400, 560, 600), 40)
+  assert.equal(clampTopOffset(-20, 560, 800), 0)
+  assert.equal(clampTopOffset(Number.NaN, 560, 800), 0)
+})
+
+/**
+ * 回归：抓上沿往下拖，必须动**顶边**而不是底边。
+ * 旧版只减 height，容器是 top 锚定 → 底边上移，面板缩到右上角。
+ */
+test('resizeFromEdge 抓上沿：顶边跟随鼠标，底边固定', () => {
+  const start = { y: 100, height: 800, topOffset: 0, edge: 'top' as const }
+  const r = resizeFromEdge(start, 200, 800) // 往下拖 200px
+  assert.equal(r.height, 600)
+  assert.equal(r.topOffset, 200)
+  // 底边位置不变：0 + 800 === 200 + 600
+  assert.equal(start.topOffset + start.height, r.topOffset + r.height)
+
+  // 往上拖则反向：顶边上移、面板变高，底边依旧不动
+  const up = resizeFromEdge({ y: 100, height: 500, topOffset: 120, edge: 'top' }, -100, 800)
+  assert.equal(up.height, 600)
+  assert.equal(up.topOffset, 20)
+  assert.equal(120 + 500, up.topOffset + up.height)
+})
+
+test('resizeFromEdge 抓下沿：底边跟随鼠标，顶边固定', () => {
+  const start = { y: 100, height: 500, topOffset: 120, edge: 'bottom' as const }
+  const r = resizeFromEdge(start, 100, 800)
+  assert.equal(r.height, 600)
+  assert.equal(r.topOffset, 120)
+  const smaller = resizeFromEdge(start, -100, 800)
+  assert.equal(smaller.height, 400)
+  assert.equal(smaller.topOffset, 120)
+})
+
+test('resizeFromEdge 在上下限处不把面板拖出可用区', () => {
+  const start = { y: 0, height: 800, topOffset: 0, edge: 'top' as const }
+  // 向上拖过头：高度封顶在可用高度，偏移归零
+  const tooTall = resizeFromEdge(start, -500, 800)
+  assert.equal(tooTall.height, 800)
+  assert.equal(tooTall.topOffset, 0)
+  // 向下拖过头：高度封底在 MIN_HEIGHT，偏移也停在上限
+  const tooShort = resizeFromEdge(start, 5000, 800)
+  assert.equal(tooShort.height, MIN_HEIGHT)
+  assert.equal(tooShort.topOffset, 800 - MIN_HEIGHT)
+  assert.equal(tooShort.topOffset + tooShort.height, 800)
 })
 
 test('saveLayout 写入失败不抛错', () => {

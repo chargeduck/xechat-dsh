@@ -147,8 +147,6 @@ export const DOCK_CSS = `
   border-radius: 10px;
   /* 高度由容器给，内部再按 flex 分配（见 .xds-panel-body 的 min-height:0） */
   min-height: 0;
-  /* 宽度/高度两个拖拽条都靠绝对定位贴边，锚点放在面板自身 */
-  position: relative;
 }
 .xds-root[data-side='right'] .xds-panel { border-left: 1px solid var(--xds-border); }
 .xds-root[data-side='left'] .xds-panel { border-right: 1px solid var(--xds-border); }
@@ -163,53 +161,173 @@ export const DOCK_CSS = `
 /* 左侧边栏内部再嵌套 xechat 自己的导航条时，去掉重复的左边框 */
 .xds-panel-body .app-sidebar { border-right: 1px solid var(--xds-border); }
 
-/* 拖拽调宽热区 */
+/*
+ * 拖拽把手（宽度 + 高度），两者都挂在 .xds-root 上，**不放进 .xds-panel**。
+ *
+ * 之前放在面板里踩了两个坑：
+ *   1. .xds-panel 有 overflow:hidden（圆角裁切需要），宽度把手定位在
+ *      left:-5px 外溢，被裁得一点不剩 → 完全看不到、也拖不动；
+ *   2. 面板内部是 xechat 自己的 Vue 应用，层级不可控，高度条会被内容压住。
+ * 提到 root 层后 root 没有 overflow，把手一定可见、一定在内容之上。
+ */
 .xds-resizer {
   pointer-events: auto;
-  width: 5px;
-  flex: 0 0 5px;
+  position: absolute;
+  z-index: 62;
+  width: 7px;
   cursor: col-resize;
   background: transparent;
   transition: background 0.15s;
+  /* 触控板/触屏拖拽时不要触发滚动或文本选择 */
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
-.xds-resizer:hover, .xds-resizer[data-dragging='true'] { background: var(--xds-accent); }
+/* 常驻一条淡淡的竖线，暗示「这里能抓」；hover 才变粗变亮 */
+.xds-resizer::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 2px;
+  height: 30px;
+  transform: translate(-50%, -50%);
+  border-radius: 1px;
+  background: var(--xds-text-dim);
+  opacity: 0.24;
+  transition: opacity 0.15s, background 0.15s, height 0.15s;
+}
+.xds-resizer:hover,
+.xds-resizer[data-dragging='true'] { background: rgba(79, 140, 255, 0.22); }
+.xds-resizer:hover::after,
+.xds-resizer[data-dragging='true']::after {
+  background: var(--xds-accent);
+  opacity: 1;
+  height: 48px;
+}
 
 /*
- * 拖拽调高热区：贴面板底边整条。
- * 只有 6px 高，视觉上是一道很淡的抓握条，hover/拖拽时才染强调色——
- * 常驻高亮会让人以为面板下方还有一块内容。
+ * 高度把手：12px 横条，贴在面板底边。
+ * 从 6px 加宽到 12px —— 6px 在桌面端实在太细，用户根本找不到（0.2.0 实测反馈）。
  */
 .xds-resizer-h {
   pointer-events: auto;
   position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 6px;
+  z-index: 62;
+  height: 12px;
   cursor: row-resize;
   background: transparent;
   transition: background 0.15s;
-  z-index: 5;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
-/* 中间那截短横线：给出「这里可以抓」的暗示 */
 .xds-resizer-h::after {
   content: '';
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 32px;
-  height: 2px;
+  width: 46px;
+  height: 3px;
   transform: translate(-50%, -50%);
-  border-radius: 1px;
+  border-radius: 2px;
   background: var(--xds-text-dim);
-  opacity: 0.3;
-  transition: opacity 0.15s, background 0.15s;
+  opacity: 0.5;
+  transition: opacity 0.15s, background 0.15s, width 0.15s;
 }
-.xds-resizer-h:hover, .xds-resizer-h[data-dragging='true'] { background: var(--xds-accent); }
-.xds-resizer-h:hover::after, .xds-resizer-h[data-dragging='true']::after {
-  background: #fff;
-  opacity: 0.85;
+.xds-resizer-h:hover,
+.xds-resizer-h[data-dragging='true'] { background: rgba(79, 140, 255, 0.22); }
+.xds-resizer-h:hover::after,
+.xds-resizer-h[data-dragging='true']::after {
+  background: var(--xds-accent);
+  opacity: 1;
+  width: 76px;
 }
+
+/*
+ * 顶部把手：用户习惯在面板「上沿」找调高的拖拽条，只在底边给一条
+ * （贴在窗口最底部、还带 8px 内缩）太难发现。复用 .xds-resizer-h 的
+ * 全部交互样式，这里只补定位与更醒目的常驻抓握线。
+ * 不外溢到 root 上方：那边紧邻 Windows 标题栏的窗口按钮，
+ * 一旦 pointer-events:auto 盖过去，最小化/关闭就点不动了。
+ */
+.xds-resizer-h[data-edge='top'] { top: 0; }
+.xds-resizer-h[data-edge='top']::after { width: 76px; opacity: 0.6; }
+.xds-resizer-h[data-edge='top']:hover::after,
+.xds-resizer-h[data-edge='top'][data-dragging='true']::after { width: 120px; }
+
+/* 尺寸设置面板：直接输入 px，比拖拽精确 */
+.xds-settings {
+  pointer-events: auto;
+  position: absolute;
+  top: 8px;
+  z-index: 70;
+  width: 218px;
+  padding: 12px;
+  box-sizing: border-box;
+  border: 1px solid var(--xds-border);
+  border-radius: 10px;
+  background: var(--xds-bg-alt);
+  box-shadow: var(--xds-shadow);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--xds-text);
+}
+.xds-settings-title {
+  margin: 0 0 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.xds-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.xds-field > label { color: var(--xds-text-dim); }
+.xds-field input {
+  width: 82px;
+  height: 26px;
+  padding: 0 8px;
+  box-sizing: border-box;
+  border: 1px solid var(--xds-border);
+  border-radius: 6px;
+  background: var(--xds-bg);
+  color: var(--xds-text);
+  font: inherit;
+  text-align: right;
+}
+.xds-field input:focus {
+  outline: none;
+  border-color: var(--xds-accent);
+}
+.xds-hint {
+  margin: 4px 0 10px;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--xds-text-dim);
+}
+.xds-actions { display: flex; gap: 8px; }
+.xds-btn {
+  flex: 1 1 0;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--xds-border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--xds-text);
+  font: inherit;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.xds-btn:hover { background: rgba(127, 127, 127, 0.16); }
+.xds-btn[data-primary='true'] {
+  border-color: var(--xds-accent);
+  background: var(--xds-accent);
+  color: #fff;
+}
+
 
 /* 加载/错误占位 */
 .xds-status {

@@ -14,7 +14,7 @@
           <span class="user-status-icon">{{ statusIcon(u.status) }}</span>
           <span class="user-name">{{ u.username }}</span>
           <span class="user-region" v-if="u.displayRegion">[{{ u.displayRegion }}]</span>
-          <span class="user-platform">{{ platformIcon(u.platform) }}</span>
+          <span class="user-platform" :title="platformLabel(u.platform)" v-html="platformIcon(u.platform)"></span>
           <span v-if="canManage(u)" class="user-actions">
             <button
               class="op-btn"
@@ -43,6 +43,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { useOnlineUsersStore } from '@/stores/onlineUsersStore'
 import { state } from '@/store.js'
 import { transport } from '@/transport/transport-manager.js'
+import { platformSvg, platformLabel } from '@/utils/platform.js'
 
 const onlineStore = useOnlineUsersStore()
 
@@ -148,13 +149,12 @@ function statusIcon(s) {
   }
 }
 
+/**
+ * 平台图标：值由服务端 Platform 枚举原样下发，这里直接映射成内联 SVG。
+ * 未知平台返回空串，不显示图标也不显示问号，避免旧服务端出现乱码。
+ */
 function platformIcon(p) {
-  switch (p) {
-    case 'IDEA': return '☕'
-    case 'WEB':
-    case 'VSCODE': return '🌐'
-    default: return ''
-  }
+  return platformSvg(p)
 }
 </script>
 
@@ -232,7 +232,12 @@ function platformIcon(p) {
 
 .user-platform {
   margin-left: auto;
-  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  /* 图标是 1em 见方，字号即图标大小 */
+  font-size: 15px;
+  line-height: 1;
+  color: var(--text-secondary);
 }
 
 .empty-hint {

@@ -29,10 +29,11 @@ dsh plugin --profile web add xechat-dsh
 dsh plugin --profile desktop add xechat-dsh
 ```
 
-不经过 npm，也可以直接装 GitHub Release 里同一份 tarball：
+不经过 npm，也可以装仓库里打好的 tarball（`npm pack` 产物，含预构建 `lib/`）：
 
 ```sh
-dsh plugin --profile web add https://github.com/chargeduck/xechat-dsh/releases/download/v0.1.1/xechat-dsh.tgz
+# 钉版本：dsh plugin --profile desktop add xechat-dsh@0.2.0
+dsh plugin --profile web add ./xechat-dsh-0.2.0.tgz
 ```
 
 仓库根目录另有一键脚本，会校验环境并验证安装结果：

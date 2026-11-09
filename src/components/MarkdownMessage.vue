@@ -31,6 +31,7 @@ import { full as markdownItEmoji } from 'markdown-it-emoji'
 import { ElMessageBox } from 'element-plus'
 import { transport } from '../transport/transport-manager.js'
 import { useServerStore } from '../stores/serverStore.js'
+import { parsePlatformMarkup } from '../utils/platform.js'
 
 const props = defineProps({
   content: { type: String, required: true },
@@ -222,7 +223,10 @@ const renderedHtml = computed(() => {
   const processed = props.content.replace(/!\[([^]]*)\]\(([^)]+)\)/g, (m, alt, url) => {
     return `![${alt}](${resolveImageUrl(url)})`
   })
-  return md.render(preprocessFont(processed))
+  // 消息头里的平台占位符 {{pf:XXX}} 换成内联图标。
+  // 放在 md.render 之后：占位符是纯文本，不会被 markdown 转义或 XSS 白名单拦掉，
+  // 换成的是本模块内置常量，不存在注入风险。
+  return parsePlatformMarkup(md.render(preprocessFont(processed)))
 })
 
 // IMAGE 消息：http(s) 直链原样展示；相对文件名由当前登录服务器推导 http 下载地址
@@ -361,6 +365,15 @@ function onContentClick(e) {
 .markdown-body .md-external-link {
   color: #409eff;
   text-decoration: none;
+}
+/* 消息头平台图标：内联 SVG，随文字色变化，不参与换行 */
+.markdown-body svg.pf-svg {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  vertical-align: -0.15em;
+  margin: 0 1px;
+  color: inherit;
 }
 .link-risk-tip {
   font-size: 14px;

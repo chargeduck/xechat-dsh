@@ -6,6 +6,7 @@ import {cleanShortRegion, stripSystemNullTag} from './utils/regionClean.js'
 import {useMaskStore} from './stores/maskStore.js'
 import {useServerStore} from './stores/serverStore.js'
 import {useSettingsStore} from './stores/settingsStore.js'
+import {platformMark} from './utils/platform.js'
 
 // 状态映射
 function _statusText(s) {
@@ -22,21 +23,15 @@ function _statusText(s) {
 }
 
 // 平台图标
+// 平台图标：消息是纯文本，这里先放占位符，渲染阶段（MarkdownMessage）再换成 SVG
 function _platformIcon(p) {
-  switch (p) {
-    case 'IDEA':
-      return '☕'
-    case 'WEB':
-    case 'VSCODE':
-      return '🌐'
-    default:
-      return ''
-  }
+  return platformMark(p)
 }
 
 /**
  * 格式化用户消息头：[时间][地区] 昵称 (状态) 平台：
- * 例如：[08/09 00:28][鲁] test (鱼) 🌐： 123
+ * 例如：[08/09 00:28][鲁] test (鱼) {{pf:DSH}}： 123
+ * 平台图标是占位符，真正的 SVG 在 MarkdownMessage 渲染时替换（见 utils/platform.js）。
  */
 function _formatUserMessageHead(data) {
   const time = data.time || ''
@@ -236,8 +231,12 @@ on('history', (data) => {
     if (item.type === 'SYSTEM') {
       parsed.push({text: stripSystemNullTag(item.body || ''), type: 'system'})
     } else if (item.type === 'USER') {
+      // 服务端 HISTORY_MSG 里每条记录是 Response{user, body, type, time}：
+      // 昵称/地区/状态/平台都在顶层 user，body 是 UserMsgDTO{content,msgType,toUsers}。
+      // 旧代码读 item.body.user 恒为 undefined，消息头就只剩「[时间] ：」，
+      // 用户看到的现象正是「历史消息只有时间和内容」。保留 body.user 兜底兼容老帧。
+      const userObj = item.user || (item.body && item.body.user)
       // mask 屏蔽过滤（历史消息同样生效）
-      const userObj = item.body && item.body.user
       const maskStore = useMaskStore()
       const hit = maskStore.masked(userObj)
       if (hit) {
@@ -249,7 +248,7 @@ on('history', (data) => {
       }
       const head = _formatUserMessageHead({
         time: item.time,
-        user: item.body && item.body.user
+        user: userObj
       })
       const hText = (item.body && item.body.content) || ''
       const isImageMsg = item.body && item.body.msgType && String(item.body.msgType).toUpperCase() === 'IMAGE'

@@ -293,7 +293,9 @@ async function handleLogin(rawText) {
     body: {
       username: username,
       status: 'FISHING',
-      platform: 'WEB',
+      // 本前端只跑在 DSH 桌面端（DeepSeek Harness 插件），固定上报 DSH，
+      // 与浏览器打开的 xechat-web（WEB）、VS Code / IDEA 插件区分开
+      platform: 'DSH',
       uuid: deviceStore.uuid,
       pluginVersion: (srv && srv.version) || '',
       reconnected: false,
@@ -338,7 +340,9 @@ async function restoreSession() {
       body: {
         username: saved.username,
         status: saved.status || 'FISHING',
-        platform: 'WEB',
+        // 本前端只跑在 DSH 桌面端（DeepSeek Harness 插件），固定上报 DSH，
+      // 与浏览器打开的 xechat-web（WEB）、VS Code / IDEA 插件区分开
+      platform: 'DSH',
         uuid: deviceStore.uuid,
         pluginVersion: (srv && srv.version) || '',
         reconnected: true,

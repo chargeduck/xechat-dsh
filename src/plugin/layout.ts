@@ -37,6 +37,17 @@ export interface DockLayout {
    * 是为了让「铺满」在窗口缩放时继续自适应——存成像素反而会在换屏后留白或溢出。
    */
   height: number | null
+  /**
+   * 面板顶边相对「顶部安全距离」的向下偏移，像素。
+   *
+   * 只调高度不足以表达「抓住上沿往下拖」：容器是 `top` 锚定的，
+   * 单纯改 height 会让**底边**往上跑（视觉上整个面板缩到右上角）。
+   * 拖上沿时同步增大这个偏移，就能让顶边跟着鼠标走、底边保持不动；
+   * 拖下沿或输入 px 时它保持不变，顶边自然固定。
+   *
+   * `height === null`（铺满）时该值恒为 0。
+   */
+  topOffset: number
   autoHide: AutoHideMode
 }
 
@@ -58,6 +69,7 @@ export const DEFAULT_LAYOUT: DockLayout = {
   visibility: 'open',
   width: DEFAULT_WIDTH,
   height: null,
+  topOffset: 0,
   autoHide: 'off',
 }
 
@@ -80,6 +92,56 @@ export function clampHeight(value: number, available = MAX_HEIGHT): number {
   const upper = Number.isFinite(available) && available > 0 ? Math.max(MIN_HEIGHT, available) : MAX_HEIGHT
   if (!Number.isFinite(value)) return MIN_HEIGHT
   return Math.min(Math.min(MAX_HEIGHT, upper), Math.max(MIN_HEIGHT, Math.round(value)))
+}
+
+/**
+ * 顶边偏移的合法区间：[0, 可用高度 - 面板高度]。
+ *
+ * 窗口变矮或用户把高度调大后，旧的偏移会把面板底边顶出可视区，
+ * 渲染前必须重新夹一次（不改写存储值，窗口拉回来仍恢复用户的位置）。
+ */
+export function clampTopOffset(value: number, height: number, available: number): number {
+  const upper = Math.max(0, available - height)
+  if (!Number.isFinite(value)) return 0
+  return Math.min(upper, Math.max(0, Math.round(value)))
+}
+
+/** 一次高度拖拽的起始快照。 */
+export interface HeightDragStart {
+  /** 按下时的指针 Y（视口坐标） */
+  y: number
+  /** 按下时面板的实际高度 */
+  height: number
+  /** 按下时面板顶边的偏移 */
+  topOffset: number
+  /** 抓住的是上沿还是下沿 */
+  edge: 'top' | 'bottom'
+}
+
+/**
+ * 按「抓住的那条边」计算新尺寸，纯函数，便于数值化回归。
+ *
+ * 容器是 top 锚定的（`top` + 固定 `height`，`bottom:auto`），因此：
+ *  - 抓下沿：顶边固定，height += delta，底边跟着鼠标走；
+ *  - 抓上沿：底边位置（`topOffset + height`）固定，height -= delta 且
+ *    topOffset 同步增大，顶边才跟着鼠标走。
+ *
+ * 旧版抓上沿只减 height，动的是底边 —— 面板整体缩到右上角，
+ * 与用户「抓哪条边就拖哪条边」的直觉相反。
+ */
+export function resizeFromEdge(start: HeightDragStart, delta: number, available: number) {
+  if (start.edge === 'bottom') {
+    return {
+      height: clampHeight(start.height + delta, available),
+      topOffset: start.topOffset,
+    }
+  }
+  const height = clampHeight(start.height - delta, available)
+  const bottomEdge = start.topOffset + start.height
+  return {
+    height,
+    topOffset: clampTopOffset(bottomEdge - height, height, available),
+  }
 }
 
 /**
@@ -106,13 +168,23 @@ export function parseLayout(raw: unknown): DockLayout {
       : source.open === false
         ? 'collapsed'
         : 'open'
+  // 旧版没有 height：缺省即「铺满」，与升级前行为一致
+  const height = typeof source.height === 'number' ? clampHeight(source.height) : null
+  // 旧版没有 topOffset：0 = 顶边贴着标题栏下沿，与升级前完全一致。
+  // 铺满态忽略任何残留偏移，避免刷新后面板顶边悬在半空。
+  const topOffset =
+    height === null
+      ? 0
+      : typeof source.topOffset === 'number' && Number.isFinite(source.topOffset)
+        ? Math.max(0, Math.round(source.topOffset))
+        : 0
   return {
     side: source.side === 'left' ? 'left' : 'right',
     open: visibility !== 'collapsed',
     visibility,
     width: typeof source.width === 'number' ? clampWidth(source.width) : DEFAULT_LAYOUT.width,
-    // 旧版没有 height：缺省即「铺满」，与升级前行为一致
-    height: typeof source.height === 'number' ? clampHeight(source.height) : null,
+    height,
+    topOffset,
     autoHide: source.autoHide === 'edge' ? 'edge' : 'off',
   }
 }

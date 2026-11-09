@@ -92,28 +92,63 @@ test('内容面板允许在容器内收缩（min-height: 0）', () => {
 })
 
 /**
- * 回归（2026-11-09）：面板高度必须能让用户自己拖。
+ * 回归（2026-11-09）：面板尺寸必须能让用户自己拖。
  *
- * 背景：面板默认铺满可用高度，在桌面端「一打开就顶满」很压人。
- * 现在底部有一条 6px 的抓握条，上下拖即可改高度，双击恢复铺满。
- * 高度存 localStorage（layout.height，null = 铺满）。
+ * 第一版把两条把手放在 `.xds-panel` 里，结果宽度把手（left:-5px 外溢）
+ * 被面板的 overflow:hidden 裁得一点不剩，高度把手 6px 又被 Vue 内容压住——
+ * 实测「悬停没有、拖不动」。现在两条把手都提到 `.xds-root` 层。
  */
-test('面板高度可拖拽：底部热区 + 双击恢复铺满', () => {
-  const panel = ruleBody('.xds-panel')
-  assert.match(
-    panel,
-    /position:\s*relative/,
-    '面板必须自身作为定位锚点：两条拖拽条都是 absolute 贴边，锚到 root 上会跑到活动栏那侧',
+test('尺寸把手挂在 root 层，不被面板的 overflow 裁剪', () => {
+  const resizer = ruleBody('.xds-resizer')
+  assert.match(resizer, /position:\s*absolute/, '宽度把手应为绝对定位')
+  assert.match(resizer, /cursor:\s*col-resize/, '宽度把手缺少列向缩放光标')
+  assert.doesNotMatch(
+    resizer,
+    /flex:\s*0 0/,
+    '宽度把手不能作为 flex 子项：它贴在面板边缘，会被面板 overflow:hidden 裁掉',
   )
+
   const resizerH = ruleBody('.xds-resizer-h')
-  assert.match(resizerH, /cursor:\s*row-resize/, '高度热区没有行向缩放光标，用户看不出能上下拖')
-  assert.match(resizerH, /bottom:\s*0/, '高度热区未贴住面板底边')
-  assert.match(resizerH, /position:\s*absolute/, '高度热区应为绝对定位，避免参与 flex 挤压内容区')
+  assert.match(resizerH, /position:\s*absolute/, '高度把手应为绝对定位')
+  assert.match(resizerH, /cursor:\s*row-resize/, '高度把手缺少行向缩放光标')
+  assert.match(resizerH, /height:\s*1[0-9]px/, '高度把手至少 10px 高，6px 在桌面端根本点不到')
 
   const shell = fs.readFileSync(path.join(ROOT, 'src/plugin/DockShell.tsx'), 'utf-8')
-  assert.match(shell, /className: 'xds-resizer-h'/, '缺少高度拖拽热区')
+  const panelStart = shell.indexOf('const panel = createElement(')
+  const resizerStart = shell.indexOf('const widthResizer')
+  assert.ok(panelStart > 0 && resizerStart > panelStart, '把手应在面板之后单独定义')
+  assert.doesNotMatch(
+    shell.slice(panelStart, resizerStart),
+    /xds-resizer/,
+    '把手不能放进 .xds-panel：面板 overflow:hidden（圆角裁切）会把贴边把手裁没',
+  )
+  assert.match(shell, /className: 'xds-resizer'/, '缺少宽度拖拽把手')
+  assert.match(shell, /className: 'xds-resizer-h'/, '缺少高度拖拽把手')
   assert.match(shell, /patch\(\{ height: null \}\)/, '缺少「双击恢复铺满」的入口')
+  assert.match(shell, /patch\(\{ width: DEFAULT_WIDTH \}\)/, '缺少「双击恢复默认宽度」的入口')
   assert.match(shell, /resolveHeight\(layout\.height/, '渲染高度未按当前视口夹取，窗口变矮会把面板顶出可视区')
+  // 拖到窗口外松手时也要收尾，否则会卡在拖拽态
+  assert.match(shell, /setPointerCapture/, '拖拽未捕获指针，移出窗口后 pointerup 会丢')
+  assert.match(shell, /pointercancel/, '缺少 pointercancel 兜底')
+})
+
+/**
+ * 回归（2026-11-09）：设置面板支持直接输入像素。
+ *
+ * 拖拽只能粗略调，且把手始终不够显眼；给一个能输数字的入口，
+ * 宽/高都能精确到 px，高度留空表示铺满。
+ */
+test('设置面板可直接输入宽高 px', () => {
+  const shell = fs.readFileSync(path.join(ROOT, 'src/plugin/DockShell.tsx'), 'utf-8')
+  assert.match(shell, /className: 'xds-settings'/, '缺少尺寸设置面板')
+  assert.match(shell, /type: 'number'/, '尺寸输入框应为 number 类型')
+  assert.match(shell, /clampWidth\(value\)/, '宽度输入未经过 clampWidth，可以写入非法值')
+  assert.match(shell, /clampHeight\(value, availableHeight\)/, '高度输入未按可用高度夹取')
+  assert.match(shell, /placeholder: '铺满'/, '高度留空的语义（铺满）未在 UI 上说明')
+
+  const input = ruleBody('.xds-field input')
+  assert.match(input, /width:/, '输入框缺少宽度，数字会挤在一起')
+  assert.match(input, /text-align:\s*right/, '数字右对齐更易读')
 })
 
 test('运行时也会写入 top（令牌晚于挂载发布时兜底）', () => {
@@ -186,4 +221,62 @@ test('左侧停靠时监听宿主侧栏收起状态', () => {
     /data-sidebar-collapsed/,
     '未观察 data-sidebar-collapsed：DSH 折叠侧栏后其控件会变成 fixed，会与本插件抢层级',
   )
+})
+
+/**
+ * 回归（2026-11-09）：只在窗口最底部放一条高度把手，用户在面板上沿找不到。
+ * 上沿补一条对称把手；两条把手各自抓自己那条边。
+ *
+ * 第二轮实测故障：上沿往下拖时整个面板「缩到右上角」——因为容器是 top 锚定，
+ * 旧代码只减 height，动的是**底边**。现在顶边把手同步改 topOffset，
+ * 保持底边位置不变，顶边才真正跟着鼠标走。
+ */
+test('面板上沿与下沿都有高度拖拽把手，且各拖各的边', () => {
+  const shell = fs.readFileSync(path.join(ROOT, 'src/plugin/DockShell.tsx'), 'utf-8')
+  assert.match(shell, /'data-edge': 'top'/, '缺少顶部高度把手')
+  assert.match(shell, /'data-edge': 'bottom'/, '缺少底部高度把手')
+  assert.match(shell, /topHeightResizer,/, '顶部把手未挂到 .xds-root 的子节点里')
+  assert.match(
+    shell,
+    /resizeFromEdge\(start, delta, availableHeight\)/,
+    '拖拽计算未走按边处理的纯函数（layout.ts 有数值化回归用例）',
+  )
+  assert.match(
+    shell,
+    /top: \(topInset > 0 \? topInset : 0\) \+ renderedTopOffset/,
+    '渲染时未应用顶边偏移，拖动结果不会体现在面板位置上',
+  )
+  assert.match(shell, /next\.height === null\s*\?\s*0/, '恢复铺满时未清零顶边偏移，面板会悬在半空')
+  assert.match(cssSource, /\.xds-resizer-h\[data-edge='top'\] \{ top: 0; \}/, '顶部把手未贴在面板上沿')
+})
+
+/** 回归：设置页（Vue 应用内）也要有宽高输入框，不能只藏在活动栏齿轮里。 */
+test('设置页提供宽高 px 输入并与外壳双向同步', () => {
+  const panel = fs.readFileSync(path.join(ROOT, 'src/views/settings/SettingsPanel.vue'), 'utf-8')
+  assert.match(panel, /面板尺寸/, '设置页缺少「面板尺寸」区块')
+  assert.match(panel, /宽度 \(px\)/, '设置页缺少宽度输入框')
+  assert.match(panel, /高度 \(px\)/, '设置页缺少高度输入框')
+  assert.match(panel, /xechat-dsh:set-size/, '设置页未把尺寸写给外壳')
+  assert.match(panel, /xechat-dsh:layout/, '设置页未回显外壳布局')
+
+  const shell = fs.readFileSync(path.join(ROOT, 'src/plugin/DockShell.tsx'), 'utf-8')
+  assert.match(shell, /addEventListener\('xechat-dsh:set-size'/, '外壳未监听尺寸设置事件')
+  assert.match(shell, /dispatchEvent\(new window\.CustomEvent\('xechat-dsh:layout'/, '外壳未广播布局')
+})
+
+/**
+ * 回归：历史消息只有时间和正文，丢掉了昵称/地区/状态/平台。
+ * 服务端 HISTORY_MSG 每条是 Response{user, body, type, time}，
+ * user 在顶层；旧代码读 item.body.user 恒为 undefined。
+ */
+test('历史消息从 Response 顶层 user 读取昵称与平台', () => {
+  const store = fs.readFileSync(path.join(ROOT, 'src/store.js'), 'utf-8')
+  const history = store.slice(store.indexOf("on('history'"))
+  assert.match(
+    history,
+    /const userObj = item\.user \|\| \(item\.body && item\.body\.user\)/,
+    '历史消息未从顶层 user 取用户信息，消息头会只剩 [时间]',
+  )
+  assert.match(history, /user: userObj/, '消息头未使用解析出的用户对象')
+  assert.doesNotMatch(history, /user: item\.body && item\.body\.user/, '仍在读不存在的 item.body.user')
 })

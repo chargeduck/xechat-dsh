@@ -331,7 +331,7 @@ export class WebSocketTransport {
         if (!username) username = 'User-' + Date.now().toString(36)
         return {
           action: 'LOGIN',
-          body: { username: username, status: 'FISHING', platform: 'WEB', uuid: this._uuid(), pluginVersion: '', reconnected: false, token: this._adminToken() }
+          body: { username: username, status: 'FISHING', platform: 'DSH', uuid: this._uuid(), pluginVersion: '', reconnected: false, token: this._adminToken() }
         }
       case 'setstatus':
         const raw = parts[1]
