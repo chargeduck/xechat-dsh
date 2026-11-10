@@ -225,6 +225,13 @@ function _resolveSenderPond(data) {
 on('history', (data) => {
   const msgList = data.msgList || []
   if (!msgList.length) return
+  // 诊断：区分「服务端历史帧没带 user」与「宿主仍缓存着旧版插件脚本」。
+  // 若控制台没有这行，说明加载的不是本包；有这行且 user=missing 才是数据问题。
+  const firstUserMsg = msgList.find(x => x && x.type === 'USER')
+  console.info(
+    '[xechat-dsh][history] 共 ' + msgList.length + ' 条，首条用户帧 user=' +
+    (firstUserMsg ? (firstUserMsg.user ? 'ok' : 'missing') : 'none')
+  )
   const parsed = []
   for (let i = 0; i < msgList.length; i++) {
     const item = msgList[i]
