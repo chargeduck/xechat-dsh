@@ -65,6 +65,9 @@ https://github.com/awesome-dsh-plugin/awesome-dsh-plugin
 
 ### 步骤 1：把代码推上 GitHub
 
+> 本步骤已完成：仓库已初始化并推送到 `chargeduck/xechat-dsh`，
+> 下面的命令与说明仅作历史记录，发布时直接跳到步骤 3。
+
 插件目录目前**还不是 git 仓库**（没有 `.git`）。先初始化并推送：
 
 ```sh
@@ -103,14 +106,14 @@ git push -u origin main
 ### 步骤 3：发 GitHub Release 并附上 tarball
 
 ```sh
-# 在项目目录执行，产物是 xechat-dsh-0.1.0.tgz
+# 在项目目录执行，产物是 xechat-dsh-0.2.3.tgz
 npm pack
 ```
 
 到仓库 **Releases → Draft a new release**：
 
-1. Tag 填 `v0.1.0`
-2. 把 `xechat-dsh-0.1.0.tgz` 拖进附件区
+1. Tag 填 `v0.2.3`
+2. 把 `xechat-dsh-0.2.3.tgz` 拖进附件区
 3. **把附件重命名为 `xechat-dsh.tgz`**（去掉版本号）
 
 第 3 步不能省。清单里的 tarball 链接用 `latest/download/`，它只在**请求时**解析 `latest`，
@@ -119,7 +122,7 @@ npm pack
 如果你更想保留版本号，就改用钉死 tag 的形式：
 
 ```yaml
-tarball: https://github.com/chargeduck/xechat-dsh/releases/download/v0.1.0/xechat-dsh-0.1.0.tgz
+tarball: https://github.com/chargeduck/xechat-dsh/releases/download/v0.2.3/xechat-dsh-0.2.3.tgz
 ```
 
 ### 步骤 4：Fork 并提交条目文件
@@ -211,7 +214,7 @@ vision voice docs skill workflow git notify dev security remote market fun
 
 ```sh
 # 1. 打包
-cd E:/private/javaCode/xechat/xechat-dsh && npm pack
+cd <仓库目录> && npm pack
 
 # 2. 推仓库（改掉 chargeduck）
 git init && git add . && git commit -m "feat: init"
@@ -220,7 +223,7 @@ git push -u origin main
 
 # 3. 加 topic: dsh-plugin（在 GitHub 网页上）
 
-# 4. 发 Release v0.1.0，附件重命名为 xechat-dsh.tgz
+# 4. 发 Release v0.2.3，附件重命名为 xechat-dsh.tgz
 
 # 5. Fork awesome-dsh-plugin，添加
 #    data/plugins/chargeduck__xechat-dsh.yml

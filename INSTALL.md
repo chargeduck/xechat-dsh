@@ -216,11 +216,11 @@ New-Item -ItemType Junction `
 npm install
 
 npm run build        # 两步：vite 打 Vue 应用 → tsdown 打包插件
-npm test             # 36 项测试
+npm test             # 71 项测试
 npm run verify:dock  # 真实渲染验证三态（open / collapsed / paused）
 npm run verify:bundle # 端到端验证 client.js 加载链路
 
-npm pack             # 产出 xechat-dsh-0.1.0.tgz
+npm pack             # 产出 xechat-dsh-0.2.3.tgz
 ```
 
 构建产物：
