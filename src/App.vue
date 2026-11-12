@@ -67,28 +67,16 @@
   </el-container>
 
   <!--
-    界面模式悬浮开关：极简 / 普通。
-    两种模式下都显示——极简模式没有侧栏，必须留一个能切回普通模式的入口。
-    极简模式打开其它页面时额外给一个「返回聊天」按钮（等价 #chat）。
+    极简模式的兜底入口。
+    模式开关本体在 ChatPanel 右下角（和「回到顶部」排在一起），聊天页以外没有 ChatPanel，
+    因此这里补两颗同位置的圆球：返回聊天 / 切回普通模式。只在极简模式 + 非聊天页出现。
   -->
-  <div class="mode-float">
-    <button
-        v-if="minimalMode && currentRoute !== 'chat'"
-        class="mode-btn"
-        title="返回聊天（#chat）"
-        @click="goRoute('chat')"
-    >
+  <div v-if="minimalMode && currentRoute !== 'chat'" class="minimal-float">
+    <button class="mini-ball" title="返回聊天（#chat）" @click="goRoute('chat')">
       <el-icon :size="14"><ChatDotRound/></el-icon>
     </button>
-    <button
-        class="mode-btn"
-        :title="minimalMode ? '切换到普通模式（#ui 0）' : '切换到极简模式（#ui 1）'"
-        @click="toggleMinimal"
-    >
-      <el-icon :size="14">
-        <ScaleToOriginal v-if="minimalMode"/>
-        <FullScreen v-else/>
-      </el-icon>
+    <button class="mini-ball" title="切回普通模式（#ui 0）" @click="toggleMinimal">
+      <el-icon :size="14"><ScaleToOriginal/></el-icon>
     </button>
   </div>
 
@@ -308,46 +296,42 @@ onBeforeUnmount(() => {
   width: 100%;
 }
 
-/* ===== 界面模式悬浮球（极简 / 普通） ===== */
-.mode-float {
+/* ===== 极简模式兜底圆球（非聊天页：返回聊天 / 切回普通） ===== */
+.minimal-float {
   position: fixed;
-  top: 8px;
-  right: 10px;
+  right: 14px;
+  bottom: 68px;
   z-index: 60;
   display: flex;
-  gap: 8px;
-  /* 半透明玻璃球：平时就能看见，鼠标移上去才完全清晰 */
-  opacity: 0.55;
-  transition: opacity 0.18s;
+  flex-direction: column;
+  gap: 6px;
 }
 
-.mode-float:hover {
-  opacity: 1;
-}
-
-.mode-btn {
-  width: 28px;
-  height: 28px;
+.mini-ball {
+  width: 26px;
+  height: 26px;
   padding: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 50%;
   border: 1px solid var(--border-color);
-  background: var(--bg-secondary);
+  background: var(--bg-primary);
   color: var(--text-secondary);
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
-  transition: color 0.15s, border-color 0.15s, transform 0.15s;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  opacity: 0.92;
+  transition: color 0.15s, border-color 0.15s, transform 0.15s, opacity 0.15s;
 }
 
-.mode-btn:hover {
+.mini-ball:hover {
+  opacity: 1;
   color: var(--accent-color);
   border-color: var(--accent-color);
-  transform: scale(1.08);
+  transform: scale(1.06);
 }
 
-.mode-btn:active {
+.mini-ball:active {
   transform: scale(0.94);
 }
 

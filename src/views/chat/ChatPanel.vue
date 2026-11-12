@@ -18,8 +18,21 @@
       </div>
     </div>
 
-    <!-- 右下角悬浮按钮：回到顶部 / 回到底部 -->
+    <!-- 右下角悬浮区：界面模式开关 / 回到顶部 / 回到底部 -->
     <div class="scroll-float">
+      <!-- 极简 ⇄ 普通：开关 + 文字标签，一眼能看出当前在哪一档 -->
+      <div
+          class="ui-mode-switch"
+          :class="{ 'is-minimal': minimalMode }"
+          :title="minimalMode ? '当前极简模式，点击切回普通模式（#ui 0）' : '当前普通模式，点击切到极简模式（#ui 1）'"
+      >
+        <span class="ui-mode-label">{{ minimalMode ? '极简' : '普通' }}</span>
+        <el-switch
+            :model-value="minimalMode"
+            size="small"
+            @change="onToggleUiMode"
+        />
+      </div>
       <el-button v-if="showTopBtn" class="float-btn" title="回到顶部" circle size="small" @click="scrollToTop">
         <el-icon :size="14"><Top /></el-icon>
       </el-button>
@@ -149,6 +162,20 @@ function scrollToBottom() {
   if (!el) return
   requestAnimationFrame(() => {
     el.scrollTop = el.scrollHeight
+  })
+}
+
+/**
+ * 右下角悬浮开关：切换极简 / 普通（等价 #ui 0|1）。
+ * 开关就在聊天页上，切完仍停在本页，无需像侧栏入口那样跳路由。
+ */
+function onToggleUiMode(val) {
+  settingsStore.setMinimalMode(val === true)
+  if (!val) return
+  // 切到极简后消息区变宽，主动贴底并聚焦输入框
+  nextTick(() => {
+    scrollToBottom()
+    inputRef.value?.focus()
   })
 }
 
@@ -1160,8 +1187,52 @@ onActivated(() => {
   bottom: 68px;
   display: flex;
   flex-direction: column;
+  align-items: flex-end;
   gap: 6px;
   z-index: 15;
+}
+
+/* ===== 极简 ⇄ 普通 开关（右下角，和回到顶部/底部排在一起） ===== */
+.ui-mode-switch {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 7px 0 9px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--bg-primary);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  opacity: 0.92;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  transition: opacity 0.2s, border-color 0.2s;
+}
+
+.ui-mode-switch:hover {
+  opacity: 1;
+  border-color: var(--accent-color);
+}
+
+.ui-mode-label {
+  font-size: 11px;
+  line-height: 1;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+}
+
+.ui-mode-switch :deep(.el-switch) {
+  height: 16px;
+  --el-switch-on-color: var(--accent-color);
+  --el-switch-off-color: var(--border-color);
+  --el-switch-button-size: 12px;
+}
+
+.ui-mode-switch :deep(.el-switch__core) {
+  min-width: 28px;
+  height: 16px;
+  border-radius: 8px;
 }
 
 .float-btn {
