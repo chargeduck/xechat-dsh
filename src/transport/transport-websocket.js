@@ -13,6 +13,63 @@
  * 游戏命令（#play/#join/#over/#admin）已移除：单机游戏改由 manager 游戏大厅（/gameInfo/list）
  * 下发并 iframe 运行，联机游戏房间能力由 manager 部署时注入的 MatchLobby SDK 在游戏页内承载。
  */
+/**
+ * 平台降级（老服务端兼容）
+ *
+ * 官方塘（-s 0 等）跑的是旧版服务端，它的 Platform 枚举只有 IDEA / WEB / COMMAND。
+ * 本端固定上报 DSH，老服务端反序列化枚举会抛异常，回一句「消息内容解析异常!」——
+ * 连接看着是通的，但永远登不进去。
+ *
+ * 处理办法：收到这句且尚未登录成功时，静默把 platform 换成 WEB 重发一次 LOGIN，
+ * 并把该塘记进 localStorage，下次直接降级发，不再多一次往返。
+ * 自己的塘（服务端枚举已含 DSH）不会命中，平台图标保持正确。
+ */
+const PLATFORM_FALLBACK = 'WEB'
+const PLATFORM_FALLBACK_KEY = 'xechat_platform_fallback_v1'
+
+function readFallbackKeys() {
+  try {
+    const arr = JSON.parse(localStorage.getItem(PLATFORM_FALLBACK_KEY) || '[]')
+    return Array.isArray(arr) ? arr : []
+  } catch (e) {
+    return []
+  }
+}
+
+function needsPlatformFallback(key) {
+  return !!key && readFallbackKeys().indexOf(key) >= 0
+}
+
+function rememberPlatformFallback(key) {
+  if (!key) return
+  try {
+    const keys = readFallbackKeys()
+    if (keys.indexOf(key) >= 0) return
+    keys.push(key)
+    // 只留最近 50 个塘，避免 localStorage 无限增长
+    localStorage.setItem(PLATFORM_FALLBACK_KEY, JSON.stringify(keys.slice(-50)))
+  } catch (e) {
+    /* ignore */
+  }
+}
+
+/**
+ * 是否需要做平台降级（纯判断，单独导出便于回归测试）。
+ *
+ * @param {{platform?:string, text?:string, acked?:boolean, downgraded?:boolean}} opts
+ * @returns {boolean}
+ */
+export function shouldDowngradePlatform(opts) {
+  const o = opts || {}
+  if (o.downgraded) return false
+  if (o.acked) return false
+  if (!/消息内容解析异常/.test(String(o.text || ''))) return false
+  const raw = String(o.platform || '').toUpperCase()
+  if (!raw) return false
+  if (raw === 'WEB' || raw === 'IDEA' || raw === 'COMMAND') return false
+  return true
+}
+
 export class WebSocketTransport {
   constructor(url) {
     this.name = 'websocket'
@@ -29,6 +86,12 @@ export class WebSocketTransport {
     this._everConnected = false
     // 本次连接是否已发出 LOGIN（服务端已把它算作一条在线会话）
     this._loggedIn = false
+    // 最近一次 LOGIN 的载荷与目标塘标识（host:wsPort），平台降级需要重发同一个 body
+    this._loginPayload = null
+    this._loginKey = ''
+    // 收到任何业务帧（非 SYSTEM）就认为登录已被服务端接受，此后不再尝试平台降级
+    this._loginAcked = false
+    this._platformDowngraded = false
   }
 
   /** 当前 WebSocket 连接地址（用于推导 HTTP 图片下载地址） */
@@ -94,6 +157,8 @@ export class WebSocketTransport {
   _dispatch(msg) {
     // 服务端协议使用 action 字段（LOGIN/CHAT/SYSTEM/...），兼容 type 兜底
     const type = msg.action || msg.type
+    // 收到任何业务帧就说明这次 LOGIN 已被服务端接受，之后不再尝试平台降级
+    if (type !== 'SYSTEM' && type !== 'HEARTBEAT') this._loginAcked = true
     switch (type) {
       case 'USER':
       case 'CHAT':
@@ -105,6 +170,8 @@ export class WebSocketTransport {
         break
       case 'SYSTEM':
         const sysText = typeof msg.body === 'string' ? msg.body : (msg.body && msg.body.content) || ''
+        // 老服务端不认 DSH：「消息内容解析异常!」是降级过程的中间态，吞掉并重发 LOGIN
+        if (this._maybeDowngradePlatform(sysText)) break
         this._emit('message', { type: 'system', text: sysText, time: msg.time })
         this._emit('system', { text: sysText, time: msg.time })
         break
@@ -161,6 +228,18 @@ export class WebSocketTransport {
     const url = 'ws://' + host + ':' + wsPort + '/xechat'
     const prevUrl = this._url
     console.log('[WS][loginToServer] host=' + host + ', port=' + port + ', wsPort=' + wsPort + ', url=' + url + ', loginPayload=' + JSON.stringify(loginPayload))
+
+    // 记住本次 LOGIN：万一目标塘是老服务端（不认识 DSH），要靠它原地降级重发
+    this._loginPayload = loginPayload
+    this._loginKey = host + ':' + wsPort
+    this._loginAcked = false
+    this._platformDowngraded = false
+    // 这个塘以前被判定过不认 DSH：直接按降级值上报，省掉一次无谓的往返
+    if (loginPayload && loginPayload.body && needsPlatformFallback(this._loginKey)) {
+      console.log('[WS][loginToServer] 该塘曾因平台不支持降级，本次直接上报 ' + PLATFORM_FALLBACK)
+      loginPayload.body.platform = PLATFORM_FALLBACK
+      this._platformDowngraded = true
+    }
 
     // 已经连在同一个地址上：直接复用连接补发 LOGIN，不要断开重连。
     // 断开重连会多一轮「服务端清理会话 → 重建会话」，刷新/恢复登录时尤其容易和
@@ -387,6 +466,40 @@ export class WebSocketTransport {
       default:
         return null
     }
+  }
+
+  /**
+   * 老服务端不认识 DSH 时的静默降级。
+   *
+   * 触发条件（同时满足才降级）：
+   *  1) 服务端回了「消息内容解析异常」，且这次登录还没收到任何业务帧（_loginAcked=false）；
+   *  2) 本次上报的平台不是老枚举里已有的值（WEB / IDEA / COMMAND）；
+   *  3) 同一个塘只降级一次，避免死循环。
+   *
+   * 命中后就地把 LOGIN 的 platform 改成 WEB 重发——第一次 LOGIN 在反序列化阶段就失败了，
+   * 服务端并没有绑定这个 channel，所以同一连接重发不会撞「已登录」。同时记住这个塘，
+   * 下次直接按降级值发。
+   *
+   * @returns {boolean} true 表示这条 SYSTEM 已被当作降级中间态吞掉，不要展示给用户
+   */
+  _maybeDowngradePlatform(sysText) {
+    const payload = this._loginPayload
+    if (!payload || !payload.body) return false
+    const ok = shouldDowngradePlatform({
+      platform: payload.body.platform,
+      text: sysText,
+      acked: this._loginAcked,
+      downgraded: this._platformDowngraded
+    })
+    if (!ok) return false
+
+    const raw = String(payload.body.platform || '').toUpperCase()
+    console.log('[WS] 目标塘不认识平台 ' + raw + '，降级为 ' + PLATFORM_FALLBACK + ' 重发 LOGIN')
+    this._platformDowngraded = true
+    payload.body.platform = PLATFORM_FALLBACK
+    rememberPlatformFallback(this._loginKey)
+    this._send(payload)
+    return true
   }
 
   _send(data) {
