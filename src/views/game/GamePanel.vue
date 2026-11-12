@@ -33,7 +33,7 @@
           </div>
         </div>
         <div class="player-body">
-          <iframe class="player-frame" :src="resolveAssetUrl(playingGame.playUrl)" allowfullscreen />
+          <iframe class="player-frame" :src="gameFrameUrl(playingGame.playUrl)" allowfullscreen />
         </div>
       </div>
     </div>
@@ -76,6 +76,32 @@ function handleLogout() {
 function handlePlay(game) {
   if (!game || !game.playUrl) return
   playingGame.value = game
+}
+
+/**
+ * 游戏页 iframe 地址。
+ *
+ * 宿主与游戏页不一定同源：DSH / VS Code / IDE 插件的宿主页面都不是
+ * https://dld.lesscoding.net，localStorage 按 origin 隔离 —— 宿主里登录拿到的 satoken，
+ * 游戏页读不到，SDK 会报「未检测到登录态（satoken）」。
+ *
+ * 跨源时把 token 经 URL 传给游戏页，由注入脚本 auth-bootstrap.js 落到游戏页自己的
+ * localStorage 并立刻从地址栏抹掉。同源（网页版大厅）不带，避免 token 出现在地址栏。
+ */
+function gameFrameUrl(playUrl) {
+  const base = resolveAssetUrl(playUrl)
+  if (!base) return base
+  let sameOrigin = false
+  try {
+    sameOrigin = new URL(base, window.location.href).origin === window.location.origin
+  } catch (e) {
+    sameOrigin = false
+  }
+  if (sameOrigin) return base
+  const token = localStorage.getItem('satoken') || localStorage.getItem('token') || ''
+  if (!token) return base
+  const sep = base.includes('?') ? '&' : '?'
+  return `${base}${sep}__xt=${encodeURIComponent(token)}`
 }
 
 function onAuthExpired() {
