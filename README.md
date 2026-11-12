@@ -32,8 +32,8 @@ dsh plugin --profile desktop add xechat-dsh
 不经过 npm，也可以装仓库里打好的 tarball（`npm pack` 产物，含预构建 `lib/`）：
 
 ```sh
-# 钉版本：dsh plugin --profile desktop add xechat-dsh@0.2.3
-dsh plugin --profile web add ./xechat-dsh-0.2.3.tgz
+# 钉版本：dsh plugin --profile desktop add xechat-dsh@0.2.4
+dsh plugin --profile web add ./xechat-dsh-0.2.4.tgz
 ```
 
 仓库根目录另有一键脚本，会校验环境并验证安装结果：
@@ -78,6 +78,90 @@ npm run build        # 先构建 Vue 应用，再打包插件 bundle
 | `lib/xechat-app.css` | 应用样式 |
 | `lib/client.js` | 插件客户端 bundle（CJS 闭包，`__ModuleLoader__.load` 注册） |
 | `lib/index.js` | 宿主侧（空实现） |
+
+## 发版
+
+五个步骤，顺序不能乱：版本 → 构建 → 推代码 → Release → npm。
+
+### 1. 改版本号
+
+```sh
+npm version patch --no-git-tag-version     # 0.2.4 → 0.2.5
+```
+
+npm 上同一个版本号不能复用，重复发布会被直接拒绝。
+
+> 本地排障用的构建**不要发 Release、也不要发 npm**，否则用户看到的版本号会莫名其妙跳一档。
+
+### 2. 构建并验证
+
+```sh
+npm run build        # 重新生成 lib/
+npm test             # 必须 0 失败
+git status --short   # 确认 lib/ 的改动也在
+```
+
+`lib/` 是**提交进仓库**的预构建产物，源码安装与 tarball 安装都直接读它。漏提交 `lib/` 会让别人装到旧代码。
+
+### 3. 提交并推送
+
+```sh
+git add -A
+git commit -m "release: <版本号>"
+git push origin main
+```
+
+### 4. 打 tag + 建 GitHub Release
+
+打开 <https://github.com/chargeduck/xechat-dsh/releases/new>：
+
+- **Tag** 填 `v<版本号>`，选 *Create new tag on publish*，target 选 `main`
+- **附件**用 `npm pack` 的产物，但必须改名成不带版本号的 `xechat-dsh.tgz`
+
+```sh
+npm pack                                  # 产出 xechat-dsh-<版本号>.tgz
+cp xechat-dsh-<版本号>.tgz xechat-dsh.tgz  # ★ 附件名不能带版本号
+```
+
+> `awesome-dsh-plugin` 条目里写的是 `releases/latest/download/xechat-dsh.tgz`。
+> `latest/download/` 只解析 latest，**文件名照字面取**。附件一旦叫
+> `xechat-dsh-0.2.5.tgz`，下次发版的瞬间链接就 404，而且不会有人察觉。
+
+### 5. 发布到 npm
+
+```sh
+# 先确认登录状态（默认 registry 是 npmmirror，必须显式指定公网）
+npm whoami --registry https://registry.npmjs.org/
+
+# 未登录时先登录：会打印一个 URL，在浏览器里过 2FA
+npm login --registry https://registry.npmjs.org/
+
+# 发布
+npm publish --registry https://registry.npmjs.org/ --access public
+```
+
+> 不加 `--registry` 会推到内网 npmmirror，或报一个**伪装的**
+> `E404 ... is not in this registry`——那不是包名冲突，是没认证或推错了源。
+
+### 6. 发完验证
+
+```sh
+# npm 的 latest 是否已指向新版本
+curl -s https://registry.npmjs.org/xechat-dsh | grep -o '"latest":"[^"]*"'
+
+# Release 附件是否可直接下载（要 200，不能 404）
+curl -sIL https://github.com/chargeduck/xechat-dsh/releases/latest/download/xechat-dsh.tgz \
+  | grep -iE "^HTTP/1.1 (200|302)|^content-length"
+```
+
+### 分发渠道与生效时间
+
+| 渠道 | 怎么触发 | 生效 |
+| --- | --- | --- |
+| GitHub Release | 手动打 tag + 传附件 | 立即 |
+| npm | `npm publish` | 几分钟（新账号首发包会先出 `0.0.0-stage` 占位） |
+| dshfind.com | 自动抓 npm，要求 `repository` 指回本仓库 | 次日 |
+| awesome-dsh-plugin 列表 | 条目已合并，`tarball` 走 `latest/download` | 跟随 Release，条目不用改 |
 
 ## 使用
 
