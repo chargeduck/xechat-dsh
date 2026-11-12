@@ -26,8 +26,11 @@ import { defineStore } from 'pinia'
 const COMMAND_DEFS = [
   { command: 'alive', args: '{0|1}', desc: '活着，0关闭 / 1开启' },
   { command: 'backgroundImage', desc: '切换背景图片' },
+  { command: 'browser', desc: '打开内置浏览器' },
+  { command: 'chat', desc: '回到聊天页' },
   { command: 'clean', desc: '清屏' },
   { command: 'exit', desc: '退出登录' },
+  { command: 'games', desc: '打开游戏大厅' },
   { command: 'help', desc: '显示此帮助' },
   { command: 'login', args: '{昵称} [-s 编号 -h IP -p 端口 -c]', desc: '登录鱼塘' },
   { command: 'loging', desc: '快速登录（默认服务器0）', inHelp: false },
@@ -37,11 +40,14 @@ const COMMAND_DEFS = [
   { command: 'notify', args: '{1|2|3}', desc: '通知：1正常 / 2隐晦 / 3关闭' },
   { command: 'open', args: '[{编号}]', desc: '打开工具' },
   { command: 'setStatus', args: '{状态值}', desc: '设置当前状态' },
+  { command: 'settings', desc: '打开设置页' },
   { command: 'showGame', desc: '跳转游戏大厅' },
   { command: 'showKey', desc: '查看当前快捷键' },
   { command: 'showMode', desc: '查看模式选项' },
   { command: 'showServer', args: '[-c]', desc: '鱼塘列表，-c 清理缓存' },
   { command: 'showStatus', desc: '查看可用状态值' },
+  { command: 'ui', args: '{0|1}', desc: '界面模式：0 普通 / 1 极简（只留聊天区）' },
+  { command: 'users', desc: '打开在线列表' },
   { command: 'weather', args: '{地名} [-d 0|3|7]', desc: '天气查询' }
 ]
 
@@ -92,6 +98,9 @@ const HELP_TAIL = `## 快捷键说明
 > *Tips*: 录制了自定义快捷键则优先使用，未录制使用上表默认键位；输入 \`#showKey\` 可查看当前生效键位。
 
 > *Tips*: \`{ }\` 必填参数，\`[ ]\` 可选参数，参数以空格分隔。
+
+> *Tips*: 右上角小按钮或 \`#ui 1\` 进入**极简模式**（只留聊天区 + 输入框，不占地方）；
+> 浏览器/游戏/在线列表/设置用 \`#browser\` / \`#games\` / \`#users\` / \`#settings\` 打开，\`#chat\` 回聊天，\`#ui 0\` 回普通模式。
 
 [开源](https://github.com/anlingyi/xechat-idea)  ·  [更多](https://xeblog.cn/?tag=xechat-idea)`
 

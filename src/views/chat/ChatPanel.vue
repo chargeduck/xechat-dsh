@@ -1,5 +1,5 @@
 <template>
-  <div class="chat-panel">
+  <div class="chat-panel" :class="{ 'is-minimal': minimalMode }">
     <div class="message-list" ref="messageListRef" @scroll="onMessageScroll">
       <div v-for="(msg, idx) in chatStore.messages" :key="idx" class="message-item">
         <!-- 系统消息：VitePress 风格彩色容器块 -->
@@ -82,7 +82,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick, onMounted } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onActivated, onDeactivated } from 'vue'
 import { useChatStore } from '@/stores/chatStore'
 import { useDeviceStore } from '@/stores/deviceStore'
 import { useHelpStore } from '@/stores/helpStore'
@@ -113,6 +113,9 @@ const commandHistoryStore = useCommandHistoryStore()
 const maskStore = useMaskStore()
 const modeStore = useModeStore()
 const aliveStore = useAliveStore()
+
+/** 极简模式：整个聊天区去色（摸鱼场景下彩色文字太扎眼），见文件末尾 .is-minimal 样式 */
+const minimalMode = computed(() => settingsStore.minimalMode)
 
 const messageListRef = ref(null)
 const inputRef = ref(null)
@@ -312,7 +315,12 @@ async function handleLogin(rawText) {
     saveSession({ host: host, port: port, username: username, pondName: pondName, status: 'FISHING' })
     chatStore.addMessage('已连接到 ' + host + ':' + port + '，登录中...')
   } catch (e) {
-    console.error('[ChatPanel] 连接服务器失败: ' + (e.message || '未知错误'))
+    const detail = (e && e.message) ? e.message : '未知错误'
+    console.error('[ChatPanel] 连接服务器失败: ' + detail)
+    // 连接失败必须说出来：旧实现只在控制台报错，界面还停在「登录中...」，用户只能干等
+    state.online = false
+    state.username = ''
+    chatStore.addMessage('登录失败：' + detail)
   }
 }
 
@@ -642,6 +650,53 @@ function handleExitCmd(text) {
 }
 
 /**
+ * 页面跳转命令：#chat / #browser / #games / #users / #settings。
+ * 极简模式没有左侧导航栏，这些命令就是打开其它页面的唯一入口；
+ * 普通模式下同样可用（少一次鼠标移动）。
+ * DSH 端没有独立的工具页，内置浏览器即 #browser。
+ */
+const ROUTE_CMD_MAP = {
+  '#chat': 'chat',
+  '#browser': 'browser',
+  '#games': 'games',
+  '#users': 'users',
+  '#settings': 'settings'
+}
+
+function handleRouteCmd(cmd) {
+  const route = ROUTE_CMD_MAP[cmd]
+  if (!route) return false
+  state.currentRoute = route
+  return true
+}
+
+/**
+ * 处理 #ui —— 界面模式切换（持久化到设置）
+ *   #ui           查看当前模式
+ *   #ui 0         普通模式（左侧导航栏 + 全部面板）
+ *   #ui 1         极简模式（只有聊天区 + 输入框，其它页面用 # 命令打开）
+ * 别名 #minimal 同 #ui 1。
+ */
+function handleUiCmd(text) {
+  const arg = text.trim().split(/\s+/).slice(1)[0] || ''
+  if (!arg) {
+    chatStore.addMessage('当前界面模式：**' + (settingsStore.minimalMode ? '极简' : '普通') + '**\n\n' +
+      '用法：`#ui 0` 普通模式（左侧导航栏） / `#ui 1` 极简模式（只有聊天区 + 输入框）')
+    return true
+  }
+  const num = parseInt(arg, 10)
+  if (num !== 0 && num !== 1) {
+    chatStore.addMessage('用法：`#ui 0` 普通模式 / `#ui 1` 极简模式')
+    return true
+  }
+  settingsStore.setMinimalMode(num === 1)
+  if (num === 1) state.currentRoute = 'chat'
+  chatStore.addMessage('已切换到【' + (num === 1 ? '极简' : '普通') + '】模式' +
+    (num === 1 ? '\n\n> 其它页面用 `#browser` / `#games` / `#users` / `#settings` 打开，`#chat` 返回聊天。' : ''))
+  return true
+}
+
+/**
  * 处理 #showGame —— 切到游戏面板
  */
 function handleShowGameCmd(text) {
@@ -888,6 +943,8 @@ function handleBackgroundImageCmd(text) {
  * 命令总入口：# 命令按首词分发；未识别返回 false 由调用方 execCommand 兜底。
  * 覆盖范围与 #help 命令表一一对应：
  *  - 已实现：help/showKey/clean/exit/showGame/showServer/showStatus/login/loging/mask/weather/mode/moyu/alive/showMode/notify
+ *  - 页面跳转：chat/browser/games/users/settings（极简模式没有侧栏，靠它们切页）
+ *  - 界面模式：ui（0 普通 / 1 极简），别名 minimal
  *  - 后端命令（返回 false 转发 execCommand）：setStatus
  *  - 前端占位（暂未实现，打 log）：open/backgroundImage
  *  - 游戏命令（#play/#join/#over/#admin）已移除：单机游戏改由 manager 游戏大厅加载，
@@ -901,6 +958,15 @@ async function dispatchChatCommand(text) {
     case '#clean':         return handleCleanCmd(text)
     case '#exit':          return handleExitCmd(text)
     case '#showgame':      return handleShowGameCmd(text)
+    // 页面跳转（极简模式下没有侧栏，靠这些命令切换页面）
+    case '#chat':
+    case '#browser':
+    case '#games':
+    case '#users':
+    case '#settings':      return handleRouteCmd(cmd)
+    // 界面模式：普通 / 极简（#minimal 直接切极简，等价 #ui 1）
+    case '#ui':            return handleUiCmd(text)
+    case '#minimal':       return handleUiCmd('#ui 1')
     case '#showserver':    return await handleShowServerCmd(text)
     case '#showstatus':    return handleShowStatusCmd(text)
     case '#login':         await handleLogin(text); return true
@@ -1037,6 +1103,37 @@ onMounted(() => {
     })
   })
   inputRef.value?.focus()
+})
+
+// ===== keep-alive（App.vue 用 <keep-alive> 缓存本页，切 tab 不再销毁重建）=====
+// 注意：keep-alive 会把 DOM 从文档里摘下再挂回，scrollTop 会丢，
+// 所以切走前记一下滚动位置/是否在底部，切回来时恢复，避免每次回来都跳回顶部。
+let savedScrollTop = 0
+let keepAtBottom = true
+
+function _isAtBottom() {
+  const el = messageListRef.value
+  if (!el) return true
+  return el.scrollHeight - el.scrollTop - el.clientHeight < 40
+}
+
+onDeactivated(() => {
+  const el = messageListRef.value
+  if (el) savedScrollTop = el.scrollTop
+  keepAtBottom = _isAtBottom()
+})
+
+onActivated(() => {
+  // 切回来直接能打字：摸鱼场景下这一步很关键
+  inputRef.value?.focus()
+  nextTick(() => {
+    requestAnimationFrame(() => {
+      const el = messageListRef.value
+      if (!el) return
+      el.scrollTop = keepAtBottom ? el.scrollHeight : savedScrollTop
+      onMessageScroll()
+    })
+  })
 })
 </script>
 
@@ -1276,5 +1373,44 @@ onMounted(() => {
   text-align: center;
   color: var(--text-secondary);
   font-size: 13px;
+}
+
+/* ===== 极简模式：整块去色 =====
+   摸鱼场景下彩色文字（系统提示、帮助 tip、行内 {color:xxx}、链接、色块标题）
+   比正文本身更扎眼，路过一眼就能看到。极简模式下一律收敛到灰阶：
+   只保留「正文 / 次要文字」两档，不出现任何强调色。 */
+.chat-panel.is-minimal {
+  --accent-color: var(--text-secondary);
+  --success-color: var(--text-secondary);
+  --danger-color: var(--text-secondary);
+}
+
+/* 系统消息块：去掉左侧彩色竖条与彩色标题 */
+.chat-panel.is-minimal .system-msg-box,
+.chat-panel.is-minimal .system-msg-box.error,
+.chat-panel.is-minimal .system-msg-box.notice,
+.chat-panel.is-minimal .system-msg-box.info {
+  border-left-color: var(--border-color);
+}
+
+.chat-panel.is-minimal .system-msg-box .system-msg-icon,
+.chat-panel.is-minimal .system-msg-box .system-msg-title,
+.chat-panel.is-minimal .system-msg-box .system-msg-text {
+  color: var(--text-secondary);
+}
+
+/* Markdown 正文：标题、链接、行内彩色 span、引用块一律平掉颜色（图片不动） */
+.chat-panel.is-minimal :deep(.markdown-body) {
+  color: var(--text-secondary);
+}
+
+.chat-panel.is-minimal :deep(.markdown-body) *:not(img) {
+  color: inherit !important;
+  text-shadow: none !important;
+}
+
+.chat-panel.is-minimal :deep(.markdown-body) blockquote {
+  border-left-color: var(--border-color) !important;
+  background: transparent !important;
 }
 </style>

@@ -180,12 +180,38 @@ export class WebSocketTransport {
 
     const self = this
     return new Promise(function(resolve, reject) {
+      // 握手阶段失败必须 reject：旧实现在 onerror 里 resolve()，导致上层打印
+      // 「已连接到 xxx，登录中...」并把状态置为在线，实际一帧都收不到，用户只能干等。
+      let settled = false
+      let opened = false
+      let timer = null
+
+      const fail = function (reason) {
+        if (settled) return
+        settled = true
+        if (timer) clearTimeout(timer)
+        reject(new Error(reason))
+      }
+      const succeed = function () {
+        if (settled) return
+        settled = true
+        if (timer) clearTimeout(timer)
+        resolve()
+      }
+
+      // 握手上限：TCP 被丢包挂死时 onerror 可能迟迟不触发
+      timer = setTimeout(function () {
+        fail('连接 ' + url + ' 超时：10s 内未完成 WebSocket 握手')
+        try { if (self._ws) self._ws.close() } catch (e) { /* ignore */ }
+      }, 10000)
+
       const ws = new WebSocket(url)
       self._ws = ws
       console.log('[WS][loginToServer] WebSocket 实例已创建, url=' + url + ', readyState=' + ws.readyState)
 
       ws.onopen = function() {
         console.log('[WS][loginToServer] onopen 触发, connected to', url)
+        opened = true
         self._everConnected = true
         self._startHeartbeat()
         self._emit('connected', {})
@@ -194,7 +220,7 @@ export class WebSocketTransport {
         if (loginPayload) {
           self._send(loginPayload)
         }
-        resolve()
+        succeed()
       }
 
       ws.onmessage = function(event) {
@@ -210,13 +236,18 @@ export class WebSocketTransport {
         console.log('[WS][loginToServer] onclose 触发, code=' + event.code + ', reason=' + event.reason + ', wasClean=' + event.wasClean)
         self._stopHeartbeat()
         self._loggedIn = false
+        // 还没 open 就 close = 握手根本没成功（端口不通 / 无 ws 入口 / 404）
+        if (!opened) {
+          fail('WebSocket 握手失败（close code=' + event.code + (event.reason ? ', ' + event.reason : '') + '）：' + url)
+          return
+        }
         if (!self._intentionalClose) self._scheduleReconnect()
       }
 
       ws.onerror = function(err) {
-        // 服务端 WS 未开启/握手失败时不做前端拒绝，交由 onclose → _scheduleReconnect 自行重试连接
-        console.warn('[WS][loginToServer] onerror 触发, url=' + url + '，交由重连机制处理', err && err.message ? err.message : err)
-        resolve()
+        const detail = err && err.message ? err.message : (err && err.type ? err.type : 'unknown')
+        console.warn('[WS][loginToServer] onerror 触发, url=' + url + ', detail=' + detail)
+        if (!opened) fail('无法建立 WebSocket 连接（' + detail + '）：' + url)
       }
     })
   }

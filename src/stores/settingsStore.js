@@ -68,7 +68,13 @@ const defaults = {
    * 通过半透明遮罩压暗 iframe 区域，缓解深色界面里整块白屏的刺眼感。
    * 0 关闭。遮罩 pointer-events: none，不影响页面内点击与滚动。
    */
-  browserDim: 0.25
+  browserDim: 0.25,
+  /**
+   * 界面极简模式：true = 隐藏左侧导航栏，只留聊天区（消息列表 + 输入框）；
+   * 其它页面（浏览器/游戏/在线列表/设置）改由 #browser/#games/#users/#settings 命令打开。
+   * 开关入口：右上角悬浮按钮，或 #ui 0/1 命令（#minimal 等价 #ui 1）。
+   */
+  minimalMode: false
 }
 
 /** 合法的浏览器配色模式 */
@@ -146,7 +152,8 @@ export const useSettingsStore = defineStore('settings', {
       msgNotify: normalizeNotifyLevel(saved.msgNotify) ?? defaults.msgNotify,
       adminToken: saved.adminToken ?? defaults.adminToken,
       browserTheme: normalizeBrowserTheme(saved.browserTheme),
-      browserDim: normalizeBrowserDim(saved.browserDim)
+      browserDim: normalizeBrowserDim(saved.browserDim),
+      minimalMode: saved.minimalMode ?? defaults.minimalMode
     }
   },
 
@@ -210,6 +217,11 @@ export const useSettingsStore = defineStore('settings', {
       this.browserDim = normalizeBrowserDim(value)
       this.persist()
     },
+    /** 切换界面极简模式（true = 极简，只留聊天区与输入框） */
+    setMinimalMode(value) {
+      this.minimalMode = !!value
+      this.persist()
+    },
     persist() {
       saveSettings({
         pluginOpacity: this.pluginOpacity,
@@ -224,7 +236,8 @@ export const useSettingsStore = defineStore('settings', {
         msgNotify: this.msgNotify,
         adminToken: this.adminToken,
         browserTheme: this.browserTheme,
-        browserDim: this.browserDim
+        browserDim: this.browserDim,
+        minimalMode: this.minimalMode
       })
     }
   }

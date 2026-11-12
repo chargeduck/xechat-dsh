@@ -1,6 +1,6 @@
 {
   "name": "xechat-dsh",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "xechat side-panel chat client for the DeepSeek Harness Web UI: a dockable sidebar that keeps the XEChat pond conversation available while you work.",
   "type": "module",
   "repository": {
