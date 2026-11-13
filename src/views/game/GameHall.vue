@@ -22,7 +22,8 @@
     <div v-else class="game-grid">
       <div v-for="game in games" :key="game.id" class="game-card">
         <div class="game-icon" :style="iconStyle(game)">
-          <img v-if="game.iconUrl" :src="resolveAssetUrl(game.iconUrl)" alt="游戏图标" />
+          <img v-if="hasIcon(game)" :src="resolveAssetUrl(game.iconUrl)" alt=""
+               @error="onIconError(game)" />
           <span v-else class="icon-placeholder">{{ placeholderText(game) }}</span>
         </div>
         <div class="game-name">{{ game.gameNameZhCn || game.gameName || '-' }}</div>
@@ -49,6 +50,8 @@ const loading = ref(false)
 const categories = ref([])
 const activeCategory = ref(null)
 const games = ref([])
+/** 图标文件加载失败的游戏（文件记录被删后 iconUrl 仍是旧地址，会显示破图） */
+const failedIcons = ref(new Set())
 
 /** 无图标时的渐变占位色池 */
 const gradientPool = [
@@ -60,16 +63,39 @@ const gradientPool = [
   'linear-gradient(135deg, #30cfd0 0%, #330867 100%)'
 ]
 
+function iconKey(game) {
+  return String(game.id ?? game.gameName ?? '')
+}
+
+/** 有可用图标才画 <img>；加载失败后回落到默认文字图标 */
+function hasIcon(game) {
+  return !!game.iconUrl && !failedIcons.value.has(iconKey(game))
+}
+
+/** 图标记录被删 / 文件 404 时隐藏破图（新 Set 赋值才能触发响应式更新） */
+function onIconError(game) {
+  const next = new Set(failedIcons.value)
+  next.add(iconKey(game))
+  failedIcons.value = next
+}
+
 function iconStyle(game) {
-  if (game.iconUrl) return {}
+  if (hasIcon(game)) return {}
   const hash = String(game.id || game.gameName || '').length
   return { background: gradientPool[hash % gradientPool.length] }
 }
 
+/** 默认文字图标：中文取前两字，英文取缩写，长名不再挤爆 48px 的图标框 */
 function placeholderText(game) {
-  const name = game.gameNameZhCn || game.gameName || ''
-  if (name.length === 2) return name.split('').join(' ')
-  return name
+  const name = String(game.gameNameZhCn || game.gameName || '?').trim()
+  const chars = Array.from(name)
+  if (chars.length <= 2) return chars.join(' ')
+  if (/^[\x00-\x7F]+$/.test(name)) {
+    const words = name.split(/[\s_\-]+/).filter(Boolean)
+    const abbr = words.length > 1 ? words.map(w => w[0]).join('') : name.slice(0, 2)
+    return abbr.slice(0, 2).toUpperCase()
+  }
+  return chars.slice(0, 2).join('')
 }
 
 async function loadCategories() {
@@ -83,6 +109,8 @@ async function loadCategories() {
 
 async function loadGames() {
   loading.value = true
+  // 重新拉列表时清掉旧的失败记录，换过图标的游戏要重新尝试加载
+  failedIcons.value = new Set()
   try {
     const params = { pageSize: 500, status: 1 }
     if (activeCategory.value !== null) {
@@ -195,10 +223,13 @@ onMounted(() => {
 }
 
 .icon-placeholder {
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 700;
   color: rgba(255, 255, 255, 0.95);
-  letter-spacing: 2px;
+  letter-spacing: 1px;
+  line-height: 1;
+  white-space: nowrap;
+  user-select: none;
 }
 
 .game-name {
