@@ -89,7 +89,7 @@
   color: var(--accent-color);
 }
 
-.chat-panel[data-v-45cd2a8e] {
+.chat-panel[data-v-a04d4e7d] {
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -97,7 +97,7 @@
 }
 
 /* ===== 消息列表 ===== */
-.message-list[data-v-45cd2a8e] {
+.message-list[data-v-a04d4e7d] {
   flex: 1;
   overflow-y: scroll;
   padding: 12px 16px;
@@ -105,7 +105,7 @@
 }
 
 /* ===== 右下角悬浮按钮组 ===== */
-.scroll-float[data-v-45cd2a8e] {
+.scroll-float[data-v-a04d4e7d] {
   position: absolute;
   right: 14px;
   bottom: 68px;
@@ -117,7 +117,7 @@
 }
 
 /* ===== 极简 ⇄ 普通 开关（右下角，和回到顶部/底部排在一起） ===== */
-.ui-mode-switch[data-v-45cd2a8e] {
+.ui-mode-switch[data-v-a04d4e7d] {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -133,28 +133,28 @@
   white-space: nowrap;
   transition: opacity 0.2s, border-color 0.2s;
 }
-.ui-mode-switch[data-v-45cd2a8e]:hover {
+.ui-mode-switch[data-v-a04d4e7d]:hover {
   opacity: 1;
   border-color: var(--accent-color);
 }
-.ui-mode-label[data-v-45cd2a8e] {
+.ui-mode-label[data-v-a04d4e7d] {
   font-size: 11px;
   line-height: 1;
   letter-spacing: 0.5px;
   color: var(--text-secondary);
 }
-.ui-mode-switch[data-v-45cd2a8e] .el-switch {
+.ui-mode-switch[data-v-a04d4e7d] .el-switch {
   height: 16px;
   --el-switch-on-color: var(--accent-color);
   --el-switch-off-color: var(--border-color);
   --el-switch-button-size: 12px;
 }
-.ui-mode-switch[data-v-45cd2a8e] .el-switch__core {
+.ui-mode-switch[data-v-a04d4e7d] .el-switch__core {
   min-width: 28px;
   height: 16px;
   border-radius: 8px;
 }
-.float-btn[data-v-45cd2a8e] {
+.float-btn[data-v-a04d4e7d] {
   border: 1px solid var(--border-color);
   background: var(--bg-primary);
   color: var(--text-primary);
@@ -162,19 +162,19 @@
   opacity: 0.92;
   transition: opacity 0.2s, border-color 0.2s, color 0.2s;
 }
-.float-btn[data-v-45cd2a8e]:hover {
+.float-btn[data-v-a04d4e7d]:hover {
   opacity: 1;
   border-color: var(--accent-color);
   color: var(--accent-color);
   background: var(--bg-primary);
 }
-.message-item[data-v-45cd2a8e] {
+.message-item[data-v-a04d4e7d] {
   padding: 4px 0;
   border-bottom: 1px solid var(--border-color);
 }
 
 /* ===== 系统消息：VitePress 风格彩色容器块 ===== */
-.system-msg-box[data-v-45cd2a8e] {
+.system-msg-box[data-v-a04d4e7d] {
   display: flex;
   align-items: flex-start;
   gap: 8px;
@@ -185,59 +185,59 @@
   font-size: 12px;
   line-height: 1.5;
 }
-.system-msg-box .system-msg-icon[data-v-45cd2a8e] {
+.system-msg-box .system-msg-icon[data-v-a04d4e7d] {
   flex-shrink: 0;
   font-size: 13px;
   margin-top: 2px;
 }
-.system-msg-box .system-msg-body[data-v-45cd2a8e] {
+.system-msg-box .system-msg-body[data-v-a04d4e7d] {
   flex: 1;
   min-width: 0;
 }
-.system-msg-box .system-msg-title[data-v-45cd2a8e] {
+.system-msg-box .system-msg-title[data-v-a04d4e7d] {
   font-weight: 600;
   margin-bottom: 2px;
   font-size: 12px;
 }
-.system-msg-box .system-msg-text[data-v-45cd2a8e] {
+.system-msg-box .system-msg-text[data-v-a04d4e7d] {
   word-break: break-word;
 }
-.system-msg-box.error[data-v-45cd2a8e] {
+.system-msg-box.error[data-v-a04d4e7d] {
   border-color: var(--danger-color);
   background: rgba(244, 71, 71, 0.08);
 }
-.system-msg-box.error .system-msg-icon[data-v-45cd2a8e] { color: var(--danger-color);
+.system-msg-box.error .system-msg-icon[data-v-a04d4e7d] { color: var(--danger-color);
 }
-.system-msg-box.error .system-msg-title[data-v-45cd2a8e] { color: var(--danger-color);
+.system-msg-box.error .system-msg-title[data-v-a04d4e7d] { color: var(--danger-color);
 }
-.system-msg-box.notice[data-v-45cd2a8e] {
+.system-msg-box.notice[data-v-a04d4e7d] {
   border-color: var(--success-color);
   background: rgba(78, 201, 176, 0.08);
 }
-.system-msg-box.notice .system-msg-icon[data-v-45cd2a8e] { color: var(--success-color);
+.system-msg-box.notice .system-msg-icon[data-v-a04d4e7d] { color: var(--success-color);
 }
-.system-msg-box.notice .system-msg-title[data-v-45cd2a8e] { color: var(--success-color);
+.system-msg-box.notice .system-msg-title[data-v-a04d4e7d] { color: var(--success-color);
 }
-.system-msg-box.info[data-v-45cd2a8e] {
+.system-msg-box.info[data-v-a04d4e7d] {
   border-color: var(--accent-color);
   background: rgba(0, 122, 204, 0.08);
 }
-.system-msg-box.info .system-msg-icon[data-v-45cd2a8e] { color: var(--accent-color);
+.system-msg-box.info .system-msg-icon[data-v-a04d4e7d] { color: var(--accent-color);
 }
-.system-msg-box.info .system-msg-title[data-v-45cd2a8e] { color: var(--accent-color);
+.system-msg-box.info .system-msg-title[data-v-a04d4e7d] { color: var(--accent-color);
 }
 
 /* 浅色主题下系统消息背景微调 */
-:root.light .system-msg-box.error[data-v-45cd2a8e]  { background: rgba(244, 71, 71, 0.06);
+:root.light .system-msg-box.error[data-v-a04d4e7d]  { background: rgba(244, 71, 71, 0.06);
 }
-:root.light .system-msg-box.notice[data-v-45cd2a8e] { background: rgba(78, 201, 176, 0.06);
+:root.light .system-msg-box.notice[data-v-a04d4e7d] { background: rgba(78, 201, 176, 0.06);
 }
-:root.light .system-msg-box.info[data-v-45cd2a8e]   { background: rgba(0, 120, 212, 0.06);
+:root.light .system-msg-box.info[data-v-a04d4e7d]   { background: rgba(0, 120, 212, 0.06);
 }
-.message-item[data-v-45cd2a8e]:last-child {
+.message-item[data-v-a04d4e7d]:last-child {
   border-bottom: none;
 }
-.empty-hint[data-v-45cd2a8e] {
+.empty-hint[data-v-a04d4e7d] {
   color: var(--text-muted);
   text-align: center;
   padding: 40px 0;
@@ -245,23 +245,23 @@
 }
 
 /* ===== 底部输入区域 ===== */
-.input-area[data-v-45cd2a8e] {
+.input-area[data-v-a04d4e7d] {
   position: relative;
   border-top: 1px solid var(--border-color);
   padding: 8px 12px;
   background: var(--bg-secondary);
 }
-.input-row[data-v-45cd2a8e] {
+.input-row[data-v-a04d4e7d] {
   display: flex;
   align-items: flex-start;
   gap: 6px;
 }
-.input-row .chat-input[data-v-45cd2a8e] {
+.input-row .chat-input[data-v-a04d4e7d] {
   flex: 1;
 }
 
 /* ===== @ 提及弹层 ===== */
-.cmd-panel[data-v-45cd2a8e] {
+.cmd-panel[data-v-a04d4e7d] {
   position: absolute;
   bottom: 56px;
   left: 12px;
@@ -276,7 +276,7 @@
   padding: 4px 0;
   font-size: 13px;
 }
-.cmd-item[data-v-45cd2a8e] {
+.cmd-item[data-v-a04d4e7d] {
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -286,18 +286,18 @@
   color: var(--text-primary);
   white-space: nowrap;
 }
-.cmd-item[data-v-45cd2a8e]:hover,
-.cmd-item.active[data-v-45cd2a8e] {
+.cmd-item[data-v-a04d4e7d]:hover,
+.cmd-item.active[data-v-a04d4e7d] {
   background: var(--bg-hover, rgba(128, 128, 128, 0.12));
 }
-.cmd-name[data-v-45cd2a8e] {
+.cmd-name[data-v-a04d4e7d] {
   color: var(--accent-color);
   font-family: Consolas, Monaco, monospace;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.cmd-desc[data-v-45cd2a8e] {
+.cmd-desc[data-v-a04d4e7d] {
   color: var(--text-secondary);
   font-size: 12px;
   white-space: nowrap;
@@ -306,11 +306,11 @@
   flex: 1;
   min-width: 0;
 }
-.cmd-empty[data-v-45cd2a8e] {
+.cmd-empty[data-v-a04d4e7d] {
   padding: 6px 12px;
   color: var(--text-secondary);
 }
-.at-panel[data-v-45cd2a8e] {
+.at-panel[data-v-a04d4e7d] {
   position: absolute;
   left: 12px;
   right: 12px;
@@ -323,7 +323,7 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
   z-index: 20;
 }
-.at-item[data-v-45cd2a8e] {
+.at-item[data-v-a04d4e7d] {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -332,23 +332,23 @@
   color: var(--text-primary);
   cursor: pointer;
 }
-.at-item.active[data-v-45cd2a8e],
-.at-item[data-v-45cd2a8e]:hover {
+.at-item.active[data-v-a04d4e7d],
+.at-item[data-v-a04d4e7d]:hover {
   background: var(--bg-hover, rgba(128, 128, 128, 0.12));
 }
-.at-status[data-v-45cd2a8e] {
+.at-status[data-v-a04d4e7d] {
   font-size: 13px;
   width: 18px;
   text-align: center;
 }
-.at-name[data-v-45cd2a8e] {
+.at-name[data-v-a04d4e7d] {
   font-weight: 500;
 }
-.at-region[data-v-45cd2a8e] {
+.at-region[data-v-a04d4e7d] {
   color: var(--text-secondary);
   font-size: 12px;
 }
-.at-empty[data-v-45cd2a8e] {
+.at-empty[data-v-a04d4e7d] {
   padding: 12px;
   text-align: center;
   color: var(--text-secondary);
@@ -359,48 +359,48 @@
    摸鱼场景下彩色文字（系统提示、帮助 tip、行内 {color:xxx}、链接、色块标题）
    比正文本身更扎眼，路过一眼就能看到。极简模式下一律收敛到灰阶：
    只保留「正文 / 次要文字」两档，不出现任何强调色。 */
-.chat-panel.is-minimal[data-v-45cd2a8e] {
+.chat-panel.is-minimal[data-v-a04d4e7d] {
   --accent-color: var(--text-secondary);
   --success-color: var(--text-secondary);
   --danger-color: var(--text-secondary);
 }
 
 /* 系统消息块：去掉左侧彩色竖条与彩色标题 */
-.chat-panel.is-minimal .system-msg-box[data-v-45cd2a8e],
-.chat-panel.is-minimal .system-msg-box.error[data-v-45cd2a8e],
-.chat-panel.is-minimal .system-msg-box.notice[data-v-45cd2a8e],
-.chat-panel.is-minimal .system-msg-box.info[data-v-45cd2a8e] {
+.chat-panel.is-minimal .system-msg-box[data-v-a04d4e7d],
+.chat-panel.is-minimal .system-msg-box.error[data-v-a04d4e7d],
+.chat-panel.is-minimal .system-msg-box.notice[data-v-a04d4e7d],
+.chat-panel.is-minimal .system-msg-box.info[data-v-a04d4e7d] {
   border-left-color: var(--border-color);
 }
-.chat-panel.is-minimal .system-msg-box .system-msg-icon[data-v-45cd2a8e],
-.chat-panel.is-minimal .system-msg-box .system-msg-title[data-v-45cd2a8e],
-.chat-panel.is-minimal .system-msg-box .system-msg-text[data-v-45cd2a8e] {
+.chat-panel.is-minimal .system-msg-box .system-msg-icon[data-v-a04d4e7d],
+.chat-panel.is-minimal .system-msg-box .system-msg-title[data-v-a04d4e7d],
+.chat-panel.is-minimal .system-msg-box .system-msg-text[data-v-a04d4e7d] {
   color: var(--text-secondary);
 }
 
 /* Markdown 正文：标题、链接、行内彩色 span、引用块一律平掉颜色（图片不动） */
-.chat-panel.is-minimal[data-v-45cd2a8e] .markdown-body {
+.chat-panel.is-minimal[data-v-a04d4e7d] .markdown-body {
   color: var(--text-secondary);
 }
-.chat-panel.is-minimal[data-v-45cd2a8e] .markdown-body *:not(img) {
+.chat-panel.is-minimal[data-v-a04d4e7d] .markdown-body *:not(img) {
   color: inherit !important;
   text-shadow: none !important;
 }
-.chat-panel.is-minimal[data-v-45cd2a8e] .markdown-body blockquote {
+.chat-panel.is-minimal[data-v-a04d4e7d] .markdown-body blockquote {
   border-left-color: var(--border-color) !important;
   background: transparent !important;
 }
-.img-btn[data-v-45cd2a8e] { margin-right: 6px; flex: 0 0 auto;
+.img-btn[data-v-a04d4e7d] { margin-right: 6px; flex: 0 0 auto;
 }
-.ctx-menu[data-v-45cd2a8e] { position: fixed; z-index: 3000; min-width: 168px; padding: 4px 0; background: #fff; border: 1px solid #e4e7ed; border-radius: 6px; box-shadow: 0 6px 18px rgba(0,0,0,.16); font-size: 13px; user-select: none;
+.ctx-menu[data-v-a04d4e7d] { position: fixed; z-index: 3000; min-width: 168px; padding: 4px 0; background: #fff; border: 1px solid #e4e7ed; border-radius: 6px; box-shadow: 0 6px 18px rgba(0,0,0,.16); font-size: 13px; user-select: none;
 }
-.ctx-item[data-v-45cd2a8e] { padding: 7px 14px; cursor: pointer; color: #606266; white-space: nowrap;
+.ctx-item[data-v-a04d4e7d] { padding: 7px 14px; cursor: pointer; color: #606266; white-space: nowrap;
 }
-.ctx-item[data-v-45cd2a8e]:hover { background: #f5f7fa; color: #409eff;
+.ctx-item[data-v-a04d4e7d]:hover { background: #f5f7fa; color: #409eff;
 }
-.ctx-item.disabled[data-v-45cd2a8e] { color: #c0c4cc; cursor: default; background: none;
+.ctx-item.disabled[data-v-a04d4e7d] { color: #c0c4cc; cursor: default; background: none;
 }
-.ctx-sep[data-v-45cd2a8e] { height: 1px; margin: 4px 0; background: #ebeef5;
+.ctx-sep[data-v-a04d4e7d] { height: 1px; margin: 4px 0; background: #ebeef5;
 }
 
 .browser-panel[data-v-61901ec9] {
