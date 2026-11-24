@@ -1,6 +1,6 @@
 <template>
   <div class="chat-panel" :class="{ 'is-minimal': minimalMode }">
-    <div class="message-list" ref="messageListRef" @scroll="onMessageScroll">
+    <div class="message-list" ref="messageListRef" @scroll="onMessageScroll" @contextmenu.prevent="onContextMenu">
       <div v-for="(msg, idx) in chatStore.messages" :key="idx" class="message-item">
         <!-- 系统消息：VitePress 风格彩色容器块 -->
         <div v-if="msg.type === 'system'" :class="['system-msg-box', classifySystemMsg(msg.text)]">
@@ -76,6 +76,12 @@
       </div>
       <div class="input-row">
         <StyleSelector @select="onStyleSelect" />
+        <el-tooltip content="发送图片（也可以直接 Ctrl+V 粘贴截图）" placement="top">
+          <el-button class="img-btn" circle size="small" :loading="uploading" @click="pickImage">
+            <el-icon :size="14"><Picture /></el-icon>
+          </el-button>
+        </el-tooltip>
+        <input ref="fileInputRef" type="file" accept="image/png,image/jpeg,image/gif,image/bmp" style="display:none" @change="onPickFile" />
         <el-input
           ref="inputRef"
           v-model="inputText"
@@ -87,9 +93,22 @@
           @keydown.enter="onEnter"
           @compositionstart="onCompositionStart"
           @compositionend="onCompositionEnd"
+          @paste="onPaste"
           class="chat-input"
         />
       </div>
+    </div>
+
+    <div v-if="ctxMenu.show" class="ctx-menu" :style="{ left: ctxMenu.x + 'px', top: ctxMenu.y + 'px' }" @click.stop>
+      <div class="ctx-item" :class="{ disabled: !ctxMenu.selection }" @click="ctxCopy">复制选中</div>
+      <div class="ctx-item" :class="{ disabled: !ctxMenu.link }" @click="ctxOpenLink">打开链接</div>
+      <div class="ctx-sep"></div>
+      <div class="ctx-item" @click="ctxCommand('#showServer -c')">获取服务器列表（#showServer -c）</div>
+      <div class="ctx-item" @click="ctxQuickLogin">快捷登录（#login 用户名 -s 0）</div>
+      <div class="ctx-sep"></div>
+      <div class="ctx-item" @click="ctxCommand('#help')">需要帮助（#help）</div>
+      <div class="ctx-item" @click="ctxCommand('#clean')">清屏（#clean）</div>
+      <div class="ctx-item" @click="ctxCommand('#exit')">退出鱼塘（#exit）</div>
     </div>
   </div>
 </template>
@@ -114,6 +133,7 @@ import { useModeStore } from '@/stores/modeStore'
 import { useAliveStore } from '@/stores/aliveStore'
 import { queryWeather } from '@/utils/weather.js'
 import { getMoyuTips } from '@/utils/moyu.js'
+import { Picture } from '@element-plus/icons-vue'
 
 const chatStore = useChatStore()
 const deviceStore = useDeviceStore()
@@ -133,6 +153,10 @@ const minimalMode = computed(() => settingsStore.minimalMode)
 const messageListRef = ref(null)
 const inputRef = ref(null)
 const inputText = ref('')
+const fileInputRef = ref(null)
+const uploading = ref(false)
+const IMAGE_MAX_BYTES = 1 << 20
+const ctxMenu = ref({ show: false, x: 0, y: 0, link: '', selection: '' })
 
 // ===== 命令历史浏览（terminal 风格 ↑↓）=====
 const histIndex = ref(-1)  // -1 表示正在编辑新内容；否则为距最新一条的距离
@@ -1050,6 +1074,134 @@ function resolveAtToUsers(text) {
   return toUsers
 }
 
+// ===== 图片 =====
+function pickImage() {
+  if (uploading.value) return
+  if (fileInputRef.value) {
+    fileInputRef.value.value = ''
+    fileInputRef.value.click()
+  }
+}
+function onPickFile(e) {
+  const f = e.target && e.target.files && e.target.files[0]
+  if (f) uploadImageFile(f)
+}
+function onPaste(e) {
+  const items = (e.clipboardData && e.clipboardData.items) || []
+  for (let i = 0; i < items.length; i++) {
+    if (items[i].type && items[i].type.indexOf('image/') === 0) {
+      const f = items[i].getAsFile()
+      if (f) { e.preventDefault(); uploadImageFile(f); return }
+    }
+  }
+}
+/** 长边超过 maxEdge 就等比缩放并转 JPEG，返回 {base64, type, size} */
+function compressImage(file, maxEdge, quality) {
+  return new Promise(function (resolve, reject) {
+    const img = new Image()
+    const url = URL.createObjectURL(file)
+    img.onload = function () {
+      URL.revokeObjectURL(url)
+      let w = img.naturalWidth
+      let h = img.naturalHeight
+      const scale = Math.min(1, maxEdge / Math.max(w, h))
+      w = Math.max(1, Math.round(w * scale))
+      h = Math.max(1, Math.round(h * scale))
+      const canvas = document.createElement('canvas')
+      canvas.width = w
+      canvas.height = h
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h)
+      canvas.toBlob(function (blob) {
+        if (!blob) return reject(new Error('压缩失败'))
+        const reader = new FileReader()
+        reader.onload = function () {
+          resolve({ base64: String(reader.result).split(',')[1], type: 'jpg', size: blob.size })
+        }
+        reader.onerror = reject
+        reader.readAsDataURL(blob)
+      }, 'image/jpeg', quality)
+    }
+    img.onerror = function () { URL.revokeObjectURL(url); reject(new Error('图片解码失败')) }
+    img.src = url
+  })
+}
+
+function uploadImageFile(file) {
+  const type0 = (file.type || '').split('/')[1] || 'png'
+  if (['png', 'jpeg', 'jpg', 'gif', 'bmp', 'webp'].indexOf(type0) < 0) {
+    console.warn('[xechat] 不支持的图片类型:', type0)
+    return
+  }
+  uploading.value = true
+  // 服务端单帧上限 8MB、上传上限 8MB；这里缩到长边 2048 + q0.85，4K 图通常只有几百 KB
+  compressImage(file, 2048, 0.85)
+    .then(function (out) {
+      if (out.size > 8 * 1024 * 1024) {
+        console.warn('[xechat] 压缩后仍超过上限:', out.size)
+        uploading.value = false
+        return
+      }
+      const ok = transport.uploadImage(out.base64, out.type)
+      setTimeout(function () { uploading.value = false }, ok ? 4000 : 0)
+      if (!ok) console.warn('[xechat] 当前端不支持发送图片')
+    })
+    .catch(function (e) { console.warn('[xechat] 图片处理失败:', e && e.message); uploading.value = false })
+}
+
+// ===== 右键菜单 =====
+function onContextMenu(e) {
+  const sel = window.getSelection ? String(window.getSelection() || '') : ''
+  ctxMenu.value = {
+    show: true,
+    x: Math.min(e.clientX, window.innerWidth - 180),
+    y: Math.min(e.clientY, window.innerHeight - 200),
+    selection: sel.trim(),
+    link: (sel.trim() && /^(https?:\/\/|www\.)/i.test(sel.trim())) ? sel.trim() : ''
+  }
+  const close = () => { ctxMenu.value.show = false; window.removeEventListener('click', close) }
+  setTimeout(() => window.addEventListener('click', close), 0)
+}
+async function ctxCopy() {
+  const t = ctxMenu.value.selection
+  ctxMenu.value.show = false
+  if (!t) return
+  try { await navigator.clipboard.writeText(t) } catch (e) {}
+}
+function ctxOpenLink() {
+  const u = ctxMenu.value.link
+  ctxMenu.value.show = false
+  if (u) window.open(u.indexOf('http') === 0 ? u : 'https://' + u, '_blank')
+}
+/** 上次使用的用户名：优先设置里的 username，其次单独记录的 last_username */
+function lastUsername() {
+  try {
+    const raw = localStorage.getItem('xechat_settings_v1')
+    if (raw) {
+      const v = JSON.parse(raw)
+      if (v && v.username) return String(v.username)
+    }
+  } catch (e) {}
+  return localStorage.getItem('xechat_last_username') || ''
+}
+
+/** 右键「快捷登录」：用上次的用户名 + 0 号服务器 */
+function ctxQuickLogin() {
+  ctxMenu.value.show = false
+  const name = lastUsername()
+  if (!name) {
+    console.warn('[xechat] 没有可用的历史用户名，请先登录一次')
+    return
+  }
+  inputText.value = '#login ' + name + ' -s 0'
+  send()
+}
+
+function ctxCommand(cmd) {
+  ctxMenu.value.show = false
+  inputText.value = cmd
+  send()
+}
+
 // 发送逻辑
 async function send() {
   const text = inputText.value.trim()
@@ -1484,4 +1636,11 @@ onActivated(() => {
   border-left-color: var(--border-color) !important;
   background: transparent !important;
 }
+
+.img-btn { margin-right: 6px; flex: 0 0 auto; }
+.ctx-menu { position: fixed; z-index: 3000; min-width: 168px; padding: 4px 0; background: #fff; border: 1px solid #e4e7ed; border-radius: 6px; box-shadow: 0 6px 18px rgba(0,0,0,.16); font-size: 13px; user-select: none; }
+.ctx-item { padding: 7px 14px; cursor: pointer; color: #606266; white-space: nowrap; }
+.ctx-item:hover { background: #f5f7fa; color: #409eff; }
+.ctx-item.disabled { color: #c0c4cc; cursor: default; background: none; }
+.ctx-sep { height: 1px; margin: 4px 0; background: #ebeef5; }
 </style>

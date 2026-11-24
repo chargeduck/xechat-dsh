@@ -9,7 +9,9 @@ function loadHistory() {
     const raw = localStorage.getItem(HISTORY_KEY)
     if (!raw) return []
     const arr = JSON.parse(raw)
-    return Array.isArray(arr) ? arr.filter(item => typeof item === 'string').slice(-MAX_HISTORY) : []
+    return Array.isArray(arr)
+      ? arr.filter(item => typeof item === 'string' && item.trim().startsWith('#')).slice(-MAX_HISTORY)
+      : []
   } catch {
     return []
   }
@@ -30,7 +32,8 @@ export const useCommandHistoryStore = defineStore('commandHistory', {
      */
     push(cmd) {
       const text = (cmd || '').trim()
-      if (!text) return
+      // 只记命令（# 开头）：↑ 只用于快速翻回命令，回填上次说的话没意义
+      if (!text || !text.startsWith('#')) return
       if (this.commands[this.commands.length - 1] === text) return
       this.commands.push(text)
       if (this.commands.length > MAX_HISTORY) {

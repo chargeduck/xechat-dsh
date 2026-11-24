@@ -46,6 +46,8 @@ function _formatUserMessageHead(data) {
   let userInfo = username
   if (status) userInfo += ' (' + status + ')'
   if (platform) userInfo += ' ' + platform
+  // 管理员昵称后加星号（与 xechat-idea 一致）
+  if (data.user && data.user.role === 'ADMIN') userInfo += ' ☆'
   parts.push(userInfo + '：')
   return parts.join(' ')
 }

@@ -373,6 +373,18 @@ export class WebSocketTransport {
    * 踢人：走服务端特殊指令聊天帧（服务端 FORCE_DISCONNECTION 识别「踢人:::{用户名}」，仅管理员生效）。
    * @param {string} username 目标用户昵称
    */
+  /**
+   * 发送图片（REACT/UPLOAD）：base64 字节交给服务端落盘，服务端随后自己广播 IMAGE 消息。
+   */
+  uploadImage(base64, fileType) {
+    if (!base64) return false
+    this._send({
+      action: 'REACT',
+      body: { react: 'UPLOAD', body: { fileType: fileType || 'png', bytes: base64 } }
+    })
+    return true
+  }
+
   kickUser(username) {
     if (!username) return false
     this.sendMessage('踢人:::' + username)

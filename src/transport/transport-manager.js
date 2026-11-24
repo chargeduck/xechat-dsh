@@ -134,6 +134,14 @@ class TransportManager {
   }
 
   /** 踢人：WS 走特殊指令聊天帧 */
+  uploadImage(base64, fileType) {
+    if (this._transport && typeof this._transport.uploadImage === 'function') {
+      return this._transport.uploadImage(base64, fileType)
+    }
+    console.warn('[Transport] 当前模式不支持 uploadImage: ' + this.mode)
+    return false
+  }
+
   kickUser(username) {
     if (this._transport && typeof this._transport.kickUser === 'function') {
       return this._transport.kickUser(username)
