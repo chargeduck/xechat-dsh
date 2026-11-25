@@ -147,3 +147,50 @@ export async function setProgress(id, ch, off) {
     // 进度写入失败不应影响阅读
   }
 }
+
+/* ============================ 备份 / 迁移 ============================ */
+
+/** 导出书库（含正文与进度），用于换机器/换端继续读 */
+export async function exportAll() {
+  const books = await listBooks()
+  const out = []
+  for (const meta of books) {
+    const full = await getBook(meta.id)
+    if (!full) continue
+    out.push({
+      name: full.name,
+      format: full.format,
+      size: full.size || 0,
+      addedAt: full.addedAt || 0,
+      chapters: full.chapters,
+      progress: await getProgress(full.id)
+    })
+  }
+  return { version: 1, exportedAt: Date.now(), books: out, current: getCurrentBookId() }
+}
+
+/**
+ * 导入书库。同名书已存在则跳过（保留本地进度），否则新增并恢复其进度。
+ * @param {object} data exportAll() 的产物
+ * @returns {{added:number, skipped:number}}
+ */
+export async function importAll(data) {
+  if (!data || !Array.isArray(data.books)) throw new Error('不是有效的书库备份文件')
+  const existing = new Set((await listBooks()).map(b => b.name))
+  let added = 0
+  let skipped = 0
+  for (const b of data.books) {
+    if (!b || !b.name || !Array.isArray(b.chapters) || !b.chapters.length) { skipped++; continue }
+    if (existing.has(b.name)) { skipped++; continue }
+    const id = await addBook({
+      name: b.name,
+      format: b.format || 'txt',
+      chapters: b.chapters,
+      size: b.size || 0
+    })
+    if (b.progress) await setProgress(id, b.progress.ch || 0, b.progress.off || 0)
+    existing.add(b.name)
+    added++
+  }
+  return { added, skipped }
+}

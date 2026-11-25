@@ -307,6 +307,15 @@ onBeforeUnmount(() => {
   flex: 1;
   padding: 0;
   overflow: hidden;
+  /* 纵向 flex：页面内容占满剩余高度，底部阅读条才能贴在可视区底部。
+     用 block 布局时子页面 height:100% 会把阅读条挤出容器（被 overflow 裁掉）。 */
+  display: flex;
+  flex-direction: column;
+}
+
+.app-main > *:not(.reader-bar) {
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 /* 极简模式：侧栏不占位，聊天区铺满整宽 */

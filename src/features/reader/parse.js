@@ -139,6 +139,18 @@ function listNames(bytes) {
   return names
 }
 
+/** 去掉 epub 转换残留的标记行，如 "chapter 812 - 0" */
+function cleanArtifacts(text) {
+  return String(text)
+    .split('\n')
+    .filter((l) => !/^\s*chapter\s+\d+\s*[-–—]\s*\d+\s*$/i.test(l))
+    .filter((l) => !/^\s*\d+\s*[-–—]\s*\d+\s*$/.test(l))
+    .join('\n')
+    .replace(/\r/g, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
+
 function stripHtml(html) {
   return String(html)
     .replace(/<\s*(script|style)[\s\S]*?<\s*\/\s*\1\s*>/gi, '')
@@ -154,8 +166,65 @@ function stripHtml(html) {
     .trim()
 }
 
+
+/** 解析 epub 目录（EPUB3 nav.xhtml 或 EPUB2 toc.ncx），返回 { 相对路径: 标题 } */
+async function buildNavMap(bytes, opfXml, baseDir) {
+  const map = {}
+  const items = []
+  const re = /<item\b[^>]*>/gi
+  let m
+  while ((m = re.exec(opfXml))) items.push(m[0])
+
+  const navItem = items.find((t) => /properties="[^"]*\bnav\b/.test(t))
+  const ncxItem = items.find((t) => /application\/x-dtbncx\+xml/.test(t))
+
+  const decodePath = (href) => {
+    const clean = String(href).split('#')[0]
+    const full = clean.charAt(0) === '/' ? clean.slice(1) : baseDir + clean
+    try { return decodeURIComponent(full) } catch (e) { return full }
+  }
+
+  if (navItem) {
+    const h = /href="([^"]+)"/.exec(navItem)
+    if (h) {
+      const raw = await readZipEntry(bytes, decodePath(h[1]))
+      if (raw) {
+        const html = new TextDecoder('utf-8').decode(raw)
+        const aRe = /<a\b[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi
+        let am
+        while ((am = aRe.exec(html))) {
+          const label = stripHtml(am[2]).replace(/\s+/g, ' ').trim()
+          if (label) map[decodePath(am[1])] = label.slice(0, 50)
+        }
+      }
+    }
+  }
+
+  if (!Object.keys(map).length && ncxItem) {
+    const h = /href="([^"]+)"/.exec(ncxItem)
+    if (h) {
+      const raw = await readZipEntry(bytes, decodePath(h[1]))
+      if (raw) {
+        const xml = new TextDecoder('utf-8').decode(raw)
+        const npRe = /<navPoint\b[\s\S]*?<\/navPoint>/gi
+        let nm
+        while ((nm = npRe.exec(xml))) {
+          const block = nm[0]
+          const src = /<content\b[^>]*src="([^"]+)"/i.exec(block)
+          const txt = /<text>([\s\S]*?)<\/text>/i.exec(block)
+          if (src && txt) {
+            const label = stripHtml(txt[1]).replace(/\s+/g, ' ').trim()
+            if (label) map[decodePath(src[1])] = label.slice(0, 50)
+          }
+        }
+      }
+    }
+  }
+  return map
+}
+
 /**
- * epub → 章节数组：按 OPF spine 顺序，每个 xhtml 一节（标题取 h1/h2 或文件名）
+ * epub → 章节数组：按 OPF spine 顺序，每个 xhtml 一节（标题优先取目录，其次 h1/h2）
  * @param {ArrayBuffer} buffer
  */
 export async function parseEpub(buffer) {
@@ -195,20 +264,48 @@ export async function parseEpub(buffer) {
   }
   if (!order.length) order.push(...Object.values(manifest).filter((h) => /\.x?html?$/i.test(h)))
 
-  // 3) 逐个取正文
+  // 3) 目录映射 + 逐个取正文
+  const navMap = await buildNavMap(bytes, opfXml, baseDir)
   const chapters = []
   for (const href of order) {
     const path = decodeURIComponent(href.charAt(0) === '/' ? href.slice(1) : baseDir + href)
     const raw = await readZipEntry(bytes, path)
     if (!raw) continue
     const html = new TextDecoder('utf-8').decode(raw)
-    const text = stripHtml(html)
+    const text = cleanArtifacts(stripHtml(html))
     if (!text) continue
-    const t = /<h[12][^>]*>([\s\S]*?)<\/h[12]>/i.exec(html)
-    const title = t ? stripHtml(t[1]).slice(0, 40) : '第 ' + (chapters.length + 1) + ' 节'
-    // 正文首行往往就是标题，去掉避免重复
-    const body = text.indexOf(title) === 0 ? text.slice(title.length).replace(/^\s+/, '') : text
-    chapters.push({ title, content: body || text })
+    // 标题优先级：目录 > h1/h2 > <title> > 序号
+    let title = navMap[path] || ''
+    if (!title) {
+      const t = /<h[12][^>]*>([\s\S]*?)<\/h[12]>/i.exec(html)
+      if (t) title = stripHtml(t[1]).replace(/\s+/g, ' ').trim()
+    }
+    if (!title) {
+      const t2 = /<title[^>]*>([\s\S]*?)<\/title>/i.exec(html)
+      if (t2) title = stripHtml(t2[1]).replace(/\s+/g, ' ').trim()
+    }
+    title = (title || '第 ' + (chapters.length + 1) + ' 节').slice(0, 50)
+    // 正文首行常与标题重复（目录标题与正文标题可能差空格/标点），按行去掉
+    const lines0 = text.split('\n')
+    const head = (lines0[0] || '').replace(/^[\uFEFF\s\u3000]+|[\s\u3000]+$/g, '')
+    const norm = (v) => String(v).replace(/[\s\u3000:：!！?？,，.。·]/g, '')
+    const likeHeading = /^(第[〇零一二三四五六七八九十百千0-9]{1,8}[章节回卷]|序章|楔子|内容简介|前言|后记)/.test(head)
+    // 有些 epub 会把标题写两遍（h3 + p），连续重复最多去掉 3 行
+    for (let k = 0; k < 3 && lines0.length > 1; k++) {
+      const h = (lines0[0] || '').replace(/^[\uFEFF\s\u3000]+|[\s\u3000]+$/g, '')
+      if (!h) { lines0.shift(); continue }
+      const like = /^(第[〇零一二三四五六七八九十百千0-9]{1,8}[章节回卷]|序章|楔子|内容简介|前言|后记)/.test(h)
+      if (norm(h) === norm(title) || like) lines0.shift()
+      else break
+    }
+    const finalText = lines0.join('\n').replace(/^[\uFEFF\s\u3000]+/, '')
+
+    // 封面 / 版权 / 目录页：正文极短且标题像元信息，直接跳过
+    const metaLike = /^(cover|封面|title ?page|目录|contents|copyright|版权|nav|toc)$/i.test(title.trim())
+    // 目录/封面页不是正文：已经有正文时直接丢弃；开头的短页也丢弃
+    if (metaLike) continue
+    if (finalText.length < 60 && chapters.length > 0) continue
+    chapters.push({ title, content: finalText })
   }
   if (!chapters.length) throw new Error('epub 中没有可读文本')
   return chapters

@@ -2,10 +2,17 @@
   <div class="reader-panel">
     <div class="panel-header">
       <span>摸鱼阅读</span>
-      <label class="upload-btn">
-        导入 txt / epub
-        <input type="file" accept=".txt,.epub" multiple @change="onPick" />
-      </label>
+      <div class="header-ops">
+        <label class="upload-btn">
+          导入 txt / epub
+          <input type="file" accept=".txt,.epub" multiple @change="onPick" />
+        </label>
+        <button class="upload-btn" title="导出书库与进度，换机器后可导入继续读" @click="onExport">导出书库</button>
+        <label class="upload-btn" title="导入之前导出的书库备份">
+          导入书库
+          <input type="file" accept=".json" @change="onImport" />
+        </label>
+      </div>
     </div>
 
     <div v-if="error" class="reader-error">{{ error }}</div>
@@ -90,7 +97,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { decodeText, splitChapters, parseEpub } from '@/features/reader/parse.js'
-import { listBooks, addBook, removeBook } from '@/features/reader/store.js'
+import { listBooks, addBook, removeBook, exportAll, importAll } from '@/features/reader/store.js'
 import {
   reader, percent, restore, openBook, gotoChapter,
   nextLine, prevLine, setColumns, toggleBar
@@ -155,6 +162,40 @@ async function onPick(e) {
   }
 }
 
+async function onExport() {
+  try {
+    const data = await exportAll()
+    const blob = new Blob([JSON.stringify(data)], { type: 'application/json' })
+    const a = document.createElement('a')
+    const d = new Date()
+    const pad = (n) => String(n).padStart(2, '0')
+    a.href = URL.createObjectURL(blob)
+    a.download = 'xechat-reader-' + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + '-' + pad(d.getHours()) + pad(d.getMinutes()) + '.json'
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    setTimeout(() => URL.revokeObjectURL(a.href), 3000)
+    ElMessage.success('已导出 ' + data.books.length + ' 本书')
+  } catch (err) {
+    ElMessage.error('导出失败：' + ((err && err.message) || err))
+  }
+}
+
+async function onImport(e) {
+  const file = (e.target.files || [])[0]
+  e.target.value = ''
+  if (!file) return
+  try {
+    const text = await file.text()
+    const data = JSON.parse(text)
+    const r = await importAll(data)
+    await refresh()
+    ElMessage.success('导入完成：新增 ' + r.added + ' 本，跳过 ' + r.skipped + ' 本')
+  } catch (err) {
+    ElMessage.error('导入失败：' + ((err && err.message) || err))
+  }
+}
+
 onMounted(async () => {
   await refresh()
   if (!reader.book) await restore()
@@ -169,6 +210,8 @@ onMounted(async () => {
   border: 1px solid var(--border-color, #3c3c3c); border-radius: 4px;
 }
 .upload-btn input { display: none; }
+.header-ops { display: flex; gap: 6px; align-items: center; }
+.header-ops .upload-btn { background: none; color: inherit; font: inherit; font-size: 12px; }
 .reader-error { margin: 0 12px 6px; font-size: 12px; color: var(--danger-color, #f44747); }
 .reader-body { flex: 1; display: flex; min-height: 0; }
 .shelf { width: 190px; border-right: 1px solid var(--border-color, #3c3c3c); overflow: auto; }
