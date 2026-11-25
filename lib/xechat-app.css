@@ -89,7 +89,7 @@
   color: var(--accent-color);
 }
 
-.chat-panel[data-v-3641091c] {
+.chat-panel[data-v-0697c7c4] {
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -97,7 +97,7 @@
 }
 
 /* ===== 消息列表 ===== */
-.message-list[data-v-3641091c] {
+.message-list[data-v-0697c7c4] {
   flex: 1;
   overflow-y: scroll;
   padding: 12px 16px;
@@ -105,7 +105,7 @@
 }
 
 /* ===== 右下角悬浮按钮组 ===== */
-.scroll-float[data-v-3641091c] {
+.scroll-float[data-v-0697c7c4] {
   position: absolute;
   right: 14px;
   bottom: 68px;
@@ -117,7 +117,7 @@
 }
 
 /* ===== 极简 ⇄ 普通 开关（右下角，和回到顶部/底部排在一起） ===== */
-.ui-mode-switch[data-v-3641091c] {
+.ui-mode-switch[data-v-0697c7c4] {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -133,28 +133,28 @@
   white-space: nowrap;
   transition: opacity 0.2s, border-color 0.2s;
 }
-.ui-mode-switch[data-v-3641091c]:hover {
+.ui-mode-switch[data-v-0697c7c4]:hover {
   opacity: 1;
   border-color: var(--accent-color);
 }
-.ui-mode-label[data-v-3641091c] {
+.ui-mode-label[data-v-0697c7c4] {
   font-size: 11px;
   line-height: 1;
   letter-spacing: 0.5px;
   color: var(--text-secondary);
 }
-.ui-mode-switch[data-v-3641091c] .el-switch {
+.ui-mode-switch[data-v-0697c7c4] .el-switch {
   height: 16px;
   --el-switch-on-color: var(--accent-color);
   --el-switch-off-color: var(--border-color);
   --el-switch-button-size: 12px;
 }
-.ui-mode-switch[data-v-3641091c] .el-switch__core {
+.ui-mode-switch[data-v-0697c7c4] .el-switch__core {
   min-width: 28px;
   height: 16px;
   border-radius: 8px;
 }
-.float-btn[data-v-3641091c] {
+.float-btn[data-v-0697c7c4] {
   border: 1px solid var(--border-color);
   background: var(--bg-primary);
   color: var(--text-primary);
@@ -162,19 +162,19 @@
   opacity: 0.92;
   transition: opacity 0.2s, border-color 0.2s, color 0.2s;
 }
-.float-btn[data-v-3641091c]:hover {
+.float-btn[data-v-0697c7c4]:hover {
   opacity: 1;
   border-color: var(--accent-color);
   color: var(--accent-color);
   background: var(--bg-primary);
 }
-.message-item[data-v-3641091c] {
+.message-item[data-v-0697c7c4] {
   padding: 4px 0;
-  border-bottom: 1px solid var(--border-color);
+  /* 原先每条消息下有一条分隔线，视觉噪音过大，改为靠间距区分 */
 }
 
 /* ===== 系统消息：VitePress 风格彩色容器块 ===== */
-.system-msg-box[data-v-3641091c] {
+.system-msg-box[data-v-0697c7c4] {
   display: flex;
   align-items: flex-start;
   gap: 8px;
@@ -185,59 +185,59 @@
   font-size: 12px;
   line-height: 1.5;
 }
-.system-msg-box .system-msg-icon[data-v-3641091c] {
+.system-msg-box .system-msg-icon[data-v-0697c7c4] {
   flex-shrink: 0;
   font-size: 13px;
   margin-top: 2px;
 }
-.system-msg-box .system-msg-body[data-v-3641091c] {
+.system-msg-box .system-msg-body[data-v-0697c7c4] {
   flex: 1;
   min-width: 0;
 }
-.system-msg-box .system-msg-title[data-v-3641091c] {
+.system-msg-box .system-msg-title[data-v-0697c7c4] {
   font-weight: 600;
   margin-bottom: 2px;
   font-size: 12px;
 }
-.system-msg-box .system-msg-text[data-v-3641091c] {
+.system-msg-box .system-msg-text[data-v-0697c7c4] {
   word-break: break-word;
 }
-.system-msg-box.error[data-v-3641091c] {
+.system-msg-box.error[data-v-0697c7c4] {
   border-color: var(--danger-color);
   background: rgba(244, 71, 71, 0.08);
 }
-.system-msg-box.error .system-msg-icon[data-v-3641091c] { color: var(--danger-color);
+.system-msg-box.error .system-msg-icon[data-v-0697c7c4] { color: var(--danger-color);
 }
-.system-msg-box.error .system-msg-title[data-v-3641091c] { color: var(--danger-color);
+.system-msg-box.error .system-msg-title[data-v-0697c7c4] { color: var(--danger-color);
 }
-.system-msg-box.notice[data-v-3641091c] {
+.system-msg-box.notice[data-v-0697c7c4] {
   border-color: var(--success-color);
   background: rgba(78, 201, 176, 0.08);
 }
-.system-msg-box.notice .system-msg-icon[data-v-3641091c] { color: var(--success-color);
+.system-msg-box.notice .system-msg-icon[data-v-0697c7c4] { color: var(--success-color);
 }
-.system-msg-box.notice .system-msg-title[data-v-3641091c] { color: var(--success-color);
+.system-msg-box.notice .system-msg-title[data-v-0697c7c4] { color: var(--success-color);
 }
-.system-msg-box.info[data-v-3641091c] {
+.system-msg-box.info[data-v-0697c7c4] {
   border-color: var(--accent-color);
   background: rgba(0, 122, 204, 0.08);
 }
-.system-msg-box.info .system-msg-icon[data-v-3641091c] { color: var(--accent-color);
+.system-msg-box.info .system-msg-icon[data-v-0697c7c4] { color: var(--accent-color);
 }
-.system-msg-box.info .system-msg-title[data-v-3641091c] { color: var(--accent-color);
+.system-msg-box.info .system-msg-title[data-v-0697c7c4] { color: var(--accent-color);
 }
 
 /* 浅色主题下系统消息背景微调 */
-:root.light .system-msg-box.error[data-v-3641091c]  { background: rgba(244, 71, 71, 0.06);
+:root.light .system-msg-box.error[data-v-0697c7c4]  { background: rgba(244, 71, 71, 0.06);
 }
-:root.light .system-msg-box.notice[data-v-3641091c] { background: rgba(78, 201, 176, 0.06);
+:root.light .system-msg-box.notice[data-v-0697c7c4] { background: rgba(78, 201, 176, 0.06);
 }
-:root.light .system-msg-box.info[data-v-3641091c]   { background: rgba(0, 120, 212, 0.06);
+:root.light .system-msg-box.info[data-v-0697c7c4]   { background: rgba(0, 120, 212, 0.06);
 }
-.message-item[data-v-3641091c]:last-child {
+.message-item[data-v-0697c7c4]:last-child {
   border-bottom: none;
 }
-.empty-hint[data-v-3641091c] {
+.empty-hint[data-v-0697c7c4] {
   color: var(--text-muted);
   text-align: center;
   padding: 40px 0;
@@ -245,23 +245,23 @@
 }
 
 /* ===== 底部输入区域 ===== */
-.input-area[data-v-3641091c] {
+.input-area[data-v-0697c7c4] {
   position: relative;
   border-top: 1px solid var(--border-color);
   padding: 8px 12px;
   background: var(--bg-secondary);
 }
-.input-row[data-v-3641091c] {
+.input-row[data-v-0697c7c4] {
   display: flex;
   align-items: flex-start;
   gap: 6px;
 }
-.input-row .chat-input[data-v-3641091c] {
+.input-row .chat-input[data-v-0697c7c4] {
   flex: 1;
 }
 
 /* ===== @ 提及弹层 ===== */
-.cmd-panel[data-v-3641091c] {
+.cmd-panel[data-v-0697c7c4] {
   position: absolute;
   bottom: 56px;
   left: 12px;
@@ -276,7 +276,7 @@
   padding: 4px 0;
   font-size: 13px;
 }
-.cmd-item[data-v-3641091c] {
+.cmd-item[data-v-0697c7c4] {
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -286,18 +286,18 @@
   color: var(--text-primary);
   white-space: nowrap;
 }
-.cmd-item[data-v-3641091c]:hover,
-.cmd-item.active[data-v-3641091c] {
+.cmd-item[data-v-0697c7c4]:hover,
+.cmd-item.active[data-v-0697c7c4] {
   background: var(--bg-hover, rgba(128, 128, 128, 0.12));
 }
-.cmd-name[data-v-3641091c] {
+.cmd-name[data-v-0697c7c4] {
   color: var(--accent-color);
   font-family: Consolas, Monaco, monospace;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.cmd-desc[data-v-3641091c] {
+.cmd-desc[data-v-0697c7c4] {
   color: var(--text-secondary);
   font-size: 12px;
   white-space: nowrap;
@@ -306,11 +306,11 @@
   flex: 1;
   min-width: 0;
 }
-.cmd-empty[data-v-3641091c] {
+.cmd-empty[data-v-0697c7c4] {
   padding: 6px 12px;
   color: var(--text-secondary);
 }
-.at-panel[data-v-3641091c] {
+.at-panel[data-v-0697c7c4] {
   position: absolute;
   left: 12px;
   right: 12px;
@@ -323,7 +323,7 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
   z-index: 20;
 }
-.at-item[data-v-3641091c] {
+.at-item[data-v-0697c7c4] {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -332,23 +332,23 @@
   color: var(--text-primary);
   cursor: pointer;
 }
-.at-item.active[data-v-3641091c],
-.at-item[data-v-3641091c]:hover {
+.at-item.active[data-v-0697c7c4],
+.at-item[data-v-0697c7c4]:hover {
   background: var(--bg-hover, rgba(128, 128, 128, 0.12));
 }
-.at-status[data-v-3641091c] {
+.at-status[data-v-0697c7c4] {
   font-size: 13px;
   width: 18px;
   text-align: center;
 }
-.at-name[data-v-3641091c] {
+.at-name[data-v-0697c7c4] {
   font-weight: 500;
 }
-.at-region[data-v-3641091c] {
+.at-region[data-v-0697c7c4] {
   color: var(--text-secondary);
   font-size: 12px;
 }
-.at-empty[data-v-3641091c] {
+.at-empty[data-v-0697c7c4] {
   padding: 12px;
   text-align: center;
   color: var(--text-secondary);
@@ -359,60 +359,60 @@
    摸鱼场景下彩色文字（系统提示、帮助 tip、行内 {color:xxx}、链接、色块标题）
    比正文本身更扎眼，路过一眼就能看到。极简模式下一律收敛到灰阶：
    只保留「正文 / 次要文字」两档，不出现任何强调色。 */
-.chat-panel.is-minimal[data-v-3641091c] {
+.chat-panel.is-minimal[data-v-0697c7c4] {
   --accent-color: var(--text-secondary);
   --success-color: var(--text-secondary);
   --danger-color: var(--text-secondary);
 }
 
 /* 系统消息块：去掉左侧彩色竖条与彩色标题 */
-.chat-panel.is-minimal .system-msg-box[data-v-3641091c],
-.chat-panel.is-minimal .system-msg-box.error[data-v-3641091c],
-.chat-panel.is-minimal .system-msg-box.notice[data-v-3641091c],
-.chat-panel.is-minimal .system-msg-box.info[data-v-3641091c] {
+.chat-panel.is-minimal .system-msg-box[data-v-0697c7c4],
+.chat-panel.is-minimal .system-msg-box.error[data-v-0697c7c4],
+.chat-panel.is-minimal .system-msg-box.notice[data-v-0697c7c4],
+.chat-panel.is-minimal .system-msg-box.info[data-v-0697c7c4] {
   border-left-color: var(--border-color);
 }
-.chat-panel.is-minimal .system-msg-box .system-msg-icon[data-v-3641091c],
-.chat-panel.is-minimal .system-msg-box .system-msg-title[data-v-3641091c],
-.chat-panel.is-minimal .system-msg-box .system-msg-text[data-v-3641091c] {
+.chat-panel.is-minimal .system-msg-box .system-msg-icon[data-v-0697c7c4],
+.chat-panel.is-minimal .system-msg-box .system-msg-title[data-v-0697c7c4],
+.chat-panel.is-minimal .system-msg-box .system-msg-text[data-v-0697c7c4] {
   color: var(--text-secondary);
 }
 
 /* Markdown 正文：标题、链接、行内彩色 span、引用块一律平掉颜色（图片不动） */
-.chat-panel.is-minimal[data-v-3641091c] .markdown-body {
+.chat-panel.is-minimal[data-v-0697c7c4] .markdown-body {
   color: var(--text-secondary);
 }
-.chat-panel.is-minimal[data-v-3641091c] .markdown-body *:not(img) {
+.chat-panel.is-minimal[data-v-0697c7c4] .markdown-body *:not(img) {
   color: inherit !important;
   text-shadow: none !important;
 }
-.chat-panel.is-minimal[data-v-3641091c] .markdown-body blockquote {
+.chat-panel.is-minimal[data-v-0697c7c4] .markdown-body blockquote {
   border-left-color: var(--border-color) !important;
   background: transparent !important;
 }
-.img-btn[data-v-3641091c] { margin-right: 6px; flex: 0 0 auto;
+.img-btn[data-v-0697c7c4] { margin-right: 6px; flex: 0 0 auto;
 }
-.ctx-menu[data-v-3641091c] { position: fixed; z-index: 3000; min-width: 168px; padding: 4px 0; background: #fff; border: 1px solid #e4e7ed; border-radius: 6px; box-shadow: 0 6px 18px rgba(0,0,0,.16); font-size: 13px; user-select: none;
+.ctx-menu[data-v-0697c7c4] { position: fixed; z-index: 3000; min-width: 168px; padding: 4px 0; background: #fff; border: 1px solid #e4e7ed; border-radius: 6px; box-shadow: 0 6px 18px rgba(0,0,0,.16); font-size: 13px; user-select: none;
 }
-.ctx-item[data-v-3641091c] { padding: 7px 14px; cursor: pointer; color: #606266; white-space: nowrap;
+.ctx-item[data-v-0697c7c4] { padding: 7px 14px; cursor: pointer; color: #606266; white-space: nowrap;
 }
-.ctx-item[data-v-3641091c]:hover { background: #f5f7fa; color: #409eff;
+.ctx-item[data-v-0697c7c4]:hover { background: #f5f7fa; color: #409eff;
 }
-.ctx-item.disabled[data-v-3641091c] { color: #c0c4cc; cursor: default; background: none;
+.ctx-item.disabled[data-v-0697c7c4] { color: #c0c4cc; cursor: default; background: none;
 }
-.ctx-sep[data-v-3641091c] { height: 1px; margin: 4px 0; background: #ebeef5;
+.ctx-sep[data-v-0697c7c4] { height: 1px; margin: 4px 0; background: #ebeef5;
 }
 
 /* 行内系统提示：一行文本，配色与卡片一致（error/notice/info） */
-.system-msg-inline[data-v-3641091c] { padding: 2px 4px; font-size: 12px; line-height: 1.6; word-break: break-all;
+.system-msg-inline[data-v-0697c7c4] { padding: 2px 4px; font-size: 12px; line-height: 1.6; word-break: break-all;
 }
-.system-msg-inline .sys-tag[data-v-3641091c] { font-weight: 700;
+.system-msg-inline .sys-tag[data-v-0697c7c4] { font-weight: 700;
 }
-.system-msg-inline.error[data-v-3641091c] { color: var(--danger-color, #f44747);
+.system-msg-inline.error[data-v-0697c7c4] { color: var(--danger-color, #f44747);
 }
-.system-msg-inline.notice[data-v-3641091c] { color: var(--success-color, #4ec9b0);
+.system-msg-inline.notice[data-v-0697c7c4] { color: var(--success-color, #4ec9b0);
 }
-.system-msg-inline.info[data-v-3641091c] { color: var(--accent-color, #007acc);
+.system-msg-inline.info[data-v-0697c7c4] { color: var(--accent-color, #007acc);
 }
 
 .browser-panel[data-v-61901ec9] {

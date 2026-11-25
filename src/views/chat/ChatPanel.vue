@@ -1459,7 +1459,7 @@ onActivated(() => {
 
 .message-item {
   padding: 4px 0;
-  border-bottom: 1px solid var(--border-color);
+  /* 原先每条消息下有一条分隔线，视觉噪音过大，改为靠间距区分 */
 }
 
 /* ===== 系统消息：VitePress 风格彩色容器块 ===== */
