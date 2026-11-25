@@ -3,11 +3,20 @@
     <div class="message-list" ref="messageListRef" @scroll="onMessageScroll" @contextmenu.prevent="onContextMenu">
       <div v-for="(msg, idx) in chatStore.messages" :key="idx" class="message-item">
         <!-- 系统消息：VitePress 风格彩色容器块 -->
-        <div v-if="msg.type === 'system'" :class="['system-msg-box', classifySystemMsg(msg.text)]">
+        <div v-if="msg.type === 'system' && sysStyle === 'inline'"
+             :class="['system-msg-inline', classifySystemMsg(msg.text)]">
+          <font class="sys-tag"><strong>【系统提示】</strong></font>
+          <MarkdownMessage v-if="hasConsoleTable(msg.text)" :content="msg.text" />
+          <template v-else>{{ stripHtml(msg.text) }}</template>
+        </div>
+        <div v-else-if="msg.type === 'system'" :class="['system-msg-box', classifySystemMsg(msg.text)]">
           <span class="system-msg-icon">{{ systemMsgIcon(msg.text) }}</span>
           <div class="system-msg-body">
             <div class="system-msg-title">{{ systemMsgTitle(msg.text) }}</div>
-            <div class="system-msg-text">{{ stripHtml(msg.text) }}</div>
+            <div class="system-msg-text">
+              <MarkdownMessage v-if="hasConsoleTable(msg.text)" :content="msg.text" />
+              <template v-else>{{ stripHtml(msg.text) }}</template>
+            </div>
           </div>
         </div>
         <!-- 普通消息：Markdown 渲染 -->
@@ -127,6 +136,7 @@ import { setChatStoreBridge, state } from '@/store.js'
 import { transport } from '@/transport/transport-manager.js'
 import { saveSession, loadSession, clearSession } from '@/session.js'
 import MarkdownMessage from '@/components/MarkdownMessage.vue'
+import { hasConsoleTable } from '@/utils/console-table.js'
 import StyleSelector from '@/components/StyleSelector.vue'
 import { useMaskStore } from '@/stores/maskStore'
 import { useModeStore } from '@/stores/modeStore'
@@ -156,6 +166,15 @@ const inputText = ref('')
 const fileInputRef = ref(null)
 const uploading = ref(false)
 const IMAGE_MAX_BYTES = 1 << 20
+/** 系统提示渲染方式：block=卡片块（默认） / inline=行内【系统提示】开头 */
+const sysStyle = ref('block')
+try { sysStyle.value = localStorage.getItem('xechat_sys_msg_style') || 'block' } catch (e) {}
+if (typeof window !== 'undefined') {
+  window.addEventListener('xechat:sys-style-changed', function (e) {
+    sysStyle.value = (e && e.detail) === 'inline' ? 'inline' : 'block'
+  })
+}
+
 const ctxMenu = ref({ show: false, x: 0, y: 0, link: '', selection: '' })
 
 // ===== 命令历史浏览（terminal 风格 ↑↓）=====
@@ -1211,6 +1230,11 @@ async function send() {
 
   try {
     if (text.startsWith('#')) {
+      // 记录最近一次登录用的昵称，供右键「快捷登录」使用
+      const loginMatch = /^#login\s+(\S+)/i.exec(text)
+      if (loginMatch && loginMatch[1]) {
+        try { localStorage.setItem('xechat_last_username', loginMatch[1]) } catch (e) {}
+      }
       // 先走命令分派，未识别的 # 命令再交给 transport 转发（如 #weather/#setStatus/#over 等后端命令）
       const handled = await dispatchChatCommand(text)
       if (!handled) {
@@ -1643,4 +1667,11 @@ onActivated(() => {
 .ctx-item:hover { background: #f5f7fa; color: #409eff; }
 .ctx-item.disabled { color: #c0c4cc; cursor: default; background: none; }
 .ctx-sep { height: 1px; margin: 4px 0; background: #ebeef5; }
+
+/* 行内系统提示：一行文本，配色与卡片一致（error/notice/info） */
+.system-msg-inline { padding: 2px 4px; font-size: 12px; line-height: 1.6; word-break: break-all; }
+.system-msg-inline .sys-tag { font-weight: 700; }
+.system-msg-inline.error { color: var(--danger-color, #f44747); }
+.system-msg-inline.notice { color: var(--success-color, #4ec9b0); }
+.system-msg-inline.info { color: var(--accent-color, #007acc); }
 </style>

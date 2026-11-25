@@ -70,6 +70,39 @@ export function shouldDowngradePlatform(opts) {
   return true
 }
 
+/**
+ * DSH 页面运行在本地（file:// 或 127.0.0.1），没有鱼塘站点的同源上下文，
+ * 因此中继地址必须是绝对地址。
+ *
+ * 走中继的原因：中继会把 >60KB 的消息拆成 Continuation 帧，这样连仍是
+ * 64KB 单帧上限的塘（如官方塘）也能发图片；直连则会被解码层断开。
+ *
+ * 可用 localStorage['xechat_dsh_relay_base'] 覆盖：
+ *   ''             → 关闭中继，退回直连 ws://host:port/xechat
+ *   'wss://xxx'    → 换用别的中继站点
+ */
+const DEFAULT_RELAY_ORIGIN = 'wss://xechat.lesscoding.net'
+/** 中继站点自己反代的本塘，直接用同源 /xechat */
+const LOCAL_PONDS = ['lesscoding.net', 'xechat.lesscoding.net']
+
+function relayBase() {
+  try {
+    const v = localStorage.getItem('xechat_dsh_relay_base')
+    if (v !== null) return v
+  } catch (e) {}
+  return DEFAULT_RELAY_ORIGIN
+}
+
+/** 解析目标塘的 WebSocket 地址：能走中继就走中继，否则直连 */
+export function buildWsUrl(host, wsPort) {
+  const h = String(host || '').trim()
+  if (!h) return ''
+  const base = relayBase()
+  if (!base) return 'ws://' + h + ':' + wsPort + '/xechat'
+  if (LOCAL_PONDS.indexOf(h.toLowerCase()) >= 0) return base + '/xechat'
+  return base + '/xechat/relay/' + h + '/' + wsPort
+}
+
 export class WebSocketTransport {
   constructor(url) {
     this.name = 'websocket'
@@ -225,7 +258,7 @@ export class WebSocketTransport {
    */
   async loginToServer(host, port, loginPayload) {
     const wsPort = parseInt(port) + 1
-    const url = 'ws://' + host + ':' + wsPort + '/xechat'
+    const url = buildWsUrl(host, wsPort)
     const prevUrl = this._url
     console.log('[WS][loginToServer] host=' + host + ', port=' + port + ', wsPort=' + wsPort + ', url=' + url + ', loginPayload=' + JSON.stringify(loginPayload))
 

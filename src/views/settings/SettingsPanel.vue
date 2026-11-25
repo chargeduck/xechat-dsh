@@ -4,6 +4,17 @@
       <span class="panel-title">设置</span>
     </div>
     <div class="settings-body">
+      <!-- 系统提示渲染方式：卡片块 / 行内前缀 -->
+      <div class="setting-block">
+        <div class="block-title">消息显示</div>
+        <div class="setting-inline">
+          <div class="inline-label"><span>系统提示样式</span></div>
+          <el-radio-group :model-value="sysStyle" size="small" @change="(v) => setSysStyle(v)">
+            <el-radio-button value="block">卡片块</el-radio-button>
+            <el-radio-button value="inline">行内【系统提示】</el-radio-button>
+          </el-radio-group>
+        </div>
+      </div>
       <!-- 面板尺寸：与 DSH 外壳（DockShell）通过 window 事件双向同步 -->
       <div v-if="isDsh" class="setting-block">
         <div class="block-title">面板尺寸</div>
@@ -210,6 +221,15 @@ import {
   DEFAULT_SHORTCUT_OPACITY_1,
   DEFAULT_SHORTCUT_PANIC
 } from '@/stores/settingsStore.js'
+
+/** 系统提示样式：block（默认卡片块）| inline（行内【系统提示】） */
+const sysStyle = ref('block')
+try { sysStyle.value = localStorage.getItem('xechat_sys_msg_style') || 'block' } catch (e) {}
+function setSysStyle(v) {
+  sysStyle.value = v === 'inline' ? 'inline' : 'block'
+  try { localStorage.setItem('xechat_sys_msg_style', sysStyle.value) } catch (e) {}
+  try { window.dispatchEvent(new CustomEvent('xechat:sys-style-changed', { detail: sysStyle.value })) } catch (e) {}
+}
 
 const settingsStore = useSettingsStore()
 

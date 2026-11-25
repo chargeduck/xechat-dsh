@@ -42,12 +42,25 @@ function toMarkdownTable(rows) {
 }
 
 /** 文本里是否含控制台表格 */
+/** 边框片段（不要求独占一行） */
+const BORDER_ANY_RE = /[+＋][\-－=_─]+(?:[+＋][\-－=_─]+)+[+＋]/
+
 export function hasConsoleTable(text) {
   if (!text || typeof text !== 'string') return false
-  return String(text).split(/\r?\n/).some((line) => {
-    const l = line.trim()
-    return BORDER_RE.test(l) || (ROW_RE.test(l) && l.length > 2)
-  })
+  return BORDER_ANY_RE.test(text)
+}
+
+/**
+ * 把「被压成一行」的表格还原成多行：
+ *  - 边框 `+---+---+` 前后强制换行；
+ *  - 行与行之间的 `| |`（管道 + 空白 + 管道）换成换行。
+ * 服务端有时整段用空格拼接下发，不还原的话无法按行解析。
+ */
+function normalizeLayout(text) {
+  return String(text)
+    .replace(new RegExp(BORDER_ANY_RE.source, 'g'), '\n$&\n')
+    .replace(/[|｜]([ \u3000]+)[|｜]/g, '|\n|')
+    .replace(/\n{3,}/g, '\n\n')
 }
 
 /**
@@ -58,7 +71,7 @@ export function hasConsoleTable(text) {
 export function consoleTableToMarkdown(text) {
   if (!text || typeof text !== 'string' || !hasConsoleTable(text)) return text
 
-  const lines = String(text).split(/\r?\n/)
+  const lines = normalizeLayout(text).split(/\r?\n/)
   const out = []
   let rows = []
 
