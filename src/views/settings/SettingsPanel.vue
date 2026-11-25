@@ -15,6 +15,22 @@
           </el-radio-group>
         </div>
       </div>
+      <!-- 网络连接：是否经 xechat 站点中继。中继会把大消息分帧，连 64KB 限制的塘也能发图 -->
+      <div class="setting-block">
+        <div class="block-title">网络连接</div>
+        <div class="setting-inline">
+          <div class="inline-label"><span>经中继连接（推荐）</span></div>
+          <el-switch
+            :model-value="useRelay"
+            @change="(v) => setUseRelay(v)"
+            active-text="开"
+            inactive-text="关"
+          />
+        </div>
+        <div class="inline-hint">
+          开启后经 {{ relayOrigin }} 转发，可发大图；关闭则直连目标鱼塘（64KB 单帧的塘发图会断开）。下次登录生效。
+        </div>
+      </div>
       <!-- 面板尺寸：与 DSH 外壳（DockShell）通过 window 事件双向同步 -->
       <div v-if="isDsh" class="setting-block">
         <div class="block-title">面板尺寸</div>
@@ -229,6 +245,20 @@ function setSysStyle(v) {
   sysStyle.value = v === 'inline' ? 'inline' : 'block'
   try { localStorage.setItem('xechat_sys_msg_style', sysStyle.value) } catch (e) {}
   try { window.dispatchEvent(new CustomEvent('xechat:sys-style-changed', { detail: sysStyle.value })) } catch (e) {}
+}
+
+/** 是否经中继连接：localStorage['xechat_dsh_relay_base'] 为空串表示直连 */
+const DEFAULT_RELAY_ORIGIN = 'wss://xechat.lesscoding.net'
+const relayOrigin = DEFAULT_RELAY_ORIGIN
+const useRelay = ref(true)
+try { useRelay.value = localStorage.getItem('xechat_dsh_relay_base') !== '' } catch (e) {}
+function setUseRelay(on) {
+  useRelay.value = !!on
+  try {
+    if (useRelay.value) localStorage.removeItem('xechat_dsh_relay_base')
+    else localStorage.setItem('xechat_dsh_relay_base', '')
+  } catch (e) {}
+  try { window.dispatchEvent(new CustomEvent('xechat:relay-changed', { detail: useRelay.value })) } catch (e) {}
 }
 
 const settingsStore = useSettingsStore()
@@ -583,5 +613,12 @@ function onAdminTokenChange(val) {
 @keyframes shortcut-blink {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
+}
+
+.inline-hint {
+  margin-top: 6px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-secondary, #8a8a8a);
 }
 </style>

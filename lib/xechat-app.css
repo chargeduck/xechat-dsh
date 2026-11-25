@@ -1232,25 +1232,25 @@
   margin-top: 8px;
 }
 
-.settings-panel[data-v-85908617] {
+.settings-panel[data-v-83d3f6d8] {
   height: 100%;
   display: flex;
   flex-direction: column;
 }
-.panel-header[data-v-85908617] {
+.panel-header[data-v-83d3f6d8] {
   display: flex;
   align-items: center;
   padding: 10px 16px;
   border-bottom: 1px solid var(--border-color);
 }
-.panel-title[data-v-85908617] {
+.panel-title[data-v-83d3f6d8] {
   font-size: 14px;
   font-weight: 600;
   color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
-.settings-body[data-v-85908617] {
+.settings-body[data-v-83d3f6d8] {
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -1258,7 +1258,7 @@
   padding: 16px;
   overflow-y: auto;
 }
-.setting-row[data-v-85908617] {
+.setting-row[data-v-83d3f6d8] {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1266,39 +1266,39 @@
   flex-wrap: wrap;
   gap: 4px;
 }
-.slider-wrap[data-v-85908617] {
+.slider-wrap[data-v-83d3f6d8] {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
 /* 说明性文字：比正文更弱，解释能力边界而不是报警 */
-.setting-hint[data-v-85908617] {
+.setting-hint[data-v-83d3f6d8] {
   font-size: 11px;
   line-height: 1.7;
   color: var(--el-text-color-secondary);
   padding: 2px 0 6px;
 }
-.slider-value[data-v-85908617] {
+.slider-value[data-v-83d3f6d8] {
   min-width: 36px;
   font-size: 12px;
   color: var(--el-text-color-secondary);
   text-align: right;
 }
-.setting-block[data-v-85908617] {
+.setting-block[data-v-83d3f6d8] {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
 /* 紧急模式 / 管理员 Token 各占一行：标签+图标在左，输入框在右 */
-.setting-inline[data-v-85908617] {
+.setting-inline[data-v-83d3f6d8] {
   display: flex;
   align-items: center;
   gap: 8px;
   min-width: 0;
 }
-.inline-label[data-v-85908617] {
+.inline-label[data-v-83d3f6d8] {
   display: flex;
   align-items: center;
   gap: 4px;
@@ -1307,33 +1307,33 @@
   color: var(--el-text-color-regular);
   white-space: nowrap;
 }
-.setting-inline .el-input[data-v-85908617] {
+.setting-inline .el-input[data-v-83d3f6d8] {
   flex: 1;
   min-width: 0;
 }
-.info-icon[data-v-85908617] {
+.info-icon[data-v-83d3f6d8] {
   font-size: 13px;
   color: var(--el-text-color-secondary);
   cursor: help;
 }
-.block-title[data-v-85908617] {
+.block-title[data-v-83d3f6d8] {
   font-size: 12px;
   font-weight: 600;
   color: var(--el-text-color-secondary);
 }
-.shortcut-row[data-v-85908617] {
+.shortcut-row[data-v-83d3f6d8] {
   display: flex;
   align-items: center;
   justify-content: space-between;
   font-size: 13px;
   gap: 8px;
 }
-.shortcut-actions[data-v-85908617] {
+.shortcut-actions[data-v-83d3f6d8] {
   display: flex;
   align-items: center;
   gap: 6px;
 }
-.shortcut-btn[data-v-85908617] {
+.shortcut-btn[data-v-83d3f6d8] {
   min-width: 130px;
   padding: 4px 10px;
   font-size: 12px;
@@ -1345,16 +1345,16 @@
   transition: all 0.15s;
   text-align: center;
 }
-.shortcut-btn[data-v-85908617]:hover {
+.shortcut-btn[data-v-83d3f6d8]:hover {
   border-color: var(--accent-color);
   color: var(--accent-color);
 }
-.shortcut-btn.recording[data-v-85908617] {
+.shortcut-btn.recording[data-v-83d3f6d8] {
   border-color: #e6a23c;
   color: #e6a23c;
-  animation: shortcut-blink-85908617 1s infinite;
+  animation: shortcut-blink-83d3f6d8 1s infinite;
 }
-.shortcut-reset[data-v-85908617] {
+.shortcut-reset[data-v-83d3f6d8] {
   padding: 4px 8px;
   font-size: 12px;
   color: var(--el-text-color-secondary);
@@ -1364,19 +1364,25 @@
   cursor: pointer;
   transition: all 0.15s;
 }
-.shortcut-reset[data-v-85908617]:hover {
+.shortcut-reset[data-v-83d3f6d8]:hover {
   color: var(--accent-color);
   border-color: var(--accent-color);
 }
-.shortcut-hint[data-v-85908617] {
+.shortcut-hint[data-v-83d3f6d8] {
   font-size: 11px;
   color: #e6a23c;
 }
-@keyframes shortcut-blink-85908617 {
+@keyframes shortcut-blink-83d3f6d8 {
 0%, 100% { opacity: 1;
 }
 50% { opacity: 0.5;
 }
+}
+.inline-hint[data-v-83d3f6d8] {
+  margin-top: 6px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-secondary, #8a8a8a);
 }
 
 .app-container[data-v-1cd5de03] {
