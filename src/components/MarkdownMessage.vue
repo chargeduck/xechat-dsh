@@ -32,6 +32,7 @@ import { ElMessageBox } from 'element-plus'
 import { transport } from '../transport/transport-manager.js'
 import { useServerStore } from '../stores/serverStore.js'
 import { parsePlatformMarkup } from '../utils/platform.js'
+import { consoleTableToMarkdown } from '@/utils/console-table.js'
 
 const props = defineProps({
   content: { type: String, required: true },
@@ -226,7 +227,7 @@ const renderedHtml = computed(() => {
   // 消息头里的平台占位符 {{pf:XXX}} 换成内联图标。
   // 放在 md.render 之后：占位符是纯文本，不会被 markdown 转义或 XSS 白名单拦掉，
   // 换成的是本模块内置常量，不存在注入风险。
-  return parsePlatformMarkup(md.render(preprocessFont(processed)))
+  return parsePlatformMarkup(md.render(preprocessFont(consoleTableToMarkdown(processed))))
 })
 
 // IMAGE 消息：http(s) 直链原样展示；相对文件名由当前登录服务器推导 http 下载地址
