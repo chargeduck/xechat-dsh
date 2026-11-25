@@ -1114,22 +1114,51 @@ function onPaste(e) {
     }
   }
 }
-/** 长边超过 maxEdge 就等比缩放并转 JPEG，返回 {base64, type, size} */
-function compressImage(file, maxEdge, quality) {
+/** 解码：优先 createImageBitmap（不经 blob URL，webview 的 CSP 会拦 blob:），回退 dataURL */
+function decodeImage(file) {
+  return new Promise(function (resolve, reject) {
+    if (typeof createImageBitmap === 'function') {
+      createImageBitmap(file).then(resolve, function () {
+        readAsDataUrl(file).then(loadFromDataUrl).then(resolve, reject)
+      })
+      return
+    }
+    readAsDataUrl(file).then(loadFromDataUrl).then(resolve, reject)
+  })
+}
+
+function readAsDataUrl(file) {
+  return new Promise(function (resolve, reject) {
+    const r = new FileReader()
+    r.onload = function () { resolve(String(r.result)) }
+    r.onerror = function () { reject(new Error('读取文件失败')) }
+    r.readAsDataURL(file)
+  })
+}
+
+function loadFromDataUrl(dataUrl) {
   return new Promise(function (resolve, reject) {
     const img = new Image()
-    const url = URL.createObjectURL(file)
-    img.onload = function () {
-      URL.revokeObjectURL(url)
-      let w = img.naturalWidth
-      let h = img.naturalHeight
-      const scale = Math.min(1, maxEdge / Math.max(w, h))
-      w = Math.max(1, Math.round(w * scale))
-      h = Math.max(1, Math.round(h * scale))
-      const canvas = document.createElement('canvas')
-      canvas.width = w
-      canvas.height = h
-      canvas.getContext('2d').drawImage(img, 0, 0, w, h)
+    img.onload = function () { resolve(img) }
+    img.onerror = function () { reject(new Error('图片解码失败')) }
+    img.src = dataUrl
+  })
+}
+
+/** 长边超过 maxEdge 就等比缩放并转 JPEG，返回 {base64, type, size} */
+function compressImage(file, maxEdge, quality) {
+  return decodeImage(file).then(function (src) {
+    const w0 = src.naturalWidth || src.width
+    const h0 = src.naturalHeight || src.height
+    const scale = Math.min(1, maxEdge / Math.max(w0, h0))
+    const w = Math.max(1, Math.round(w0 * scale))
+    const h = Math.max(1, Math.round(h0 * scale))
+    const canvas = document.createElement('canvas')
+    canvas.width = w
+    canvas.height = h
+    canvas.getContext('2d').drawImage(src, 0, 0, w, h)
+    if (src.close) { try { src.close() } catch (e) {} }
+    return new Promise(function (resolve, reject) {
       canvas.toBlob(function (blob) {
         if (!blob) return reject(new Error('压缩失败'))
         const reader = new FileReader()
@@ -1139,9 +1168,7 @@ function compressImage(file, maxEdge, quality) {
         reader.onerror = reject
         reader.readAsDataURL(blob)
       }, 'image/jpeg', quality)
-    }
-    img.onerror = function () { URL.revokeObjectURL(url); reject(new Error('图片解码失败')) }
-    img.src = url
+    })
   })
 }
 
@@ -1160,7 +1187,10 @@ function uploadImageFile(file) {
         uploading.value = false
         return
       }
-      const ok = transport.uploadImage(out.base64, out.type)
+      const me = (onlineUsersStore.users || []).find(function (x) { return x.username === state.username }) || {}
+      let selfId = me.id
+      if (!selfId) { try { selfId = localStorage.getItem('xechat_self_id') || '' } catch (e) {} }
+      const ok = transport.uploadImage(out.base64, out.type, selfId)
       setTimeout(function () { uploading.value = false }, ok ? 4000 : 0)
       if (!ok) console.warn('[xechat] 当前端不支持发送图片')
     })

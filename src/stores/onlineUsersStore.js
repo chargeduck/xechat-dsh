@@ -44,6 +44,12 @@ export const useOnlineUsersStore = defineStore('onlineUsers', {
     /** 全量替换用户列表（ONLINE_USERS） */
     setUsers(userList) {
       this.users = (userList || []).map(u => this._normalize(u))
+        // 记录自己的服务端 id（UserCache 的键）：发图/管控的 uid 都要用它
+        try {
+          const myName = localStorage.getItem('xechat_last_username') || ''
+          const me = this.users.find(u => u.username === myName && u.id)
+          if (me) localStorage.setItem('xechat_self_id', me.id)
+        } catch (e) {}
     },
 
     /** 添加或更新一个用户（USER_STATE） */

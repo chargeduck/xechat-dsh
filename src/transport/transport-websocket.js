@@ -409,11 +409,17 @@ export class WebSocketTransport {
   /**
    * 发送图片（REACT/UPLOAD）：base64 字节交给服务端落盘，服务端随后自己广播 IMAGE 消息。
    */
-  uploadImage(base64, fileType) {
+  uploadImage(base64, fileType, myId) {
     if (!base64) return false
+    // 服务端 ReactActionHandler 用 UserCache.get(request.getUid()) 查用户，
+    // 这里必须是「登录后服务端分配的 id」，不是客户端自生成的 uuid，否则回「请先登录！」
+    let uid = myId || this._selfId || ''
+    if (!uid) {
+      try { uid = localStorage.getItem('xechat_self_id') || '' } catch (e) {}
+    }
     this._send({
       action: 'REACT',
-      body: { react: 'UPLOAD', body: { fileType: fileType || 'png', bytes: base64 } }
+      body: { react: 'UPLOAD', uid: uid, body: { fileType: fileType || 'png', bytes: base64 } }
     })
     return true
   }
