@@ -1,0 +1,192 @@
+<template>
+  <div class="reader-panel">
+    <div class="panel-header">
+      <span>摸鱼阅读</span>
+      <label class="upload-btn">
+        导入 txt / epub
+        <input type="file" accept=".txt,.epub" multiple @change="onPick" />
+      </label>
+    </div>
+
+    <div v-if="error" class="reader-error">{{ error }}</div>
+
+    <div class="reader-body">
+      <!-- 书架 -->
+      <aside class="shelf">
+        <div class="shelf-title">书架（{{ books.length }}）</div>
+        <div
+          v-for="b in books"
+          :key="b.id"
+          class="shelf-item"
+          :class="{ active: reader.book && reader.book.id === b.id }"
+          @click="select(b.id)"
+        >
+          <span class="shelf-name" :title="b.name">{{ b.name }}</span>
+          <span class="shelf-meta">{{ b.chapters }} 章</span>
+          <span class="shelf-del" title="移出书架" @click.stop="del(b.id)">×</span>
+        </div>
+        <div v-if="!books.length" class="empty-hint">还没有书，点右上角导入</div>
+      </aside>
+
+      <!-- 正文 -->
+      <section class="reading">
+        <template v-if="reader.book">
+          <div class="chapter-bar">
+            <el-select
+              :model-value="reader.ch"
+              size="small"
+              filterable
+              class="chapter-select"
+              @change="(v) => gotoChapter(v)"
+            >
+              <el-option
+                v-for="(c, i) in reader.book.chapters"
+                :key="i"
+                :label="(i + 1) + '. ' + c.title"
+                :value="i"
+              />
+            </el-select>
+            <span class="reading-progress">{{ percent }}% · 第 {{ reader.off + 1 }}/{{ reader.lines.length }} 行</span>
+          </div>
+
+          <div class="reading-text">
+            <div
+              v-for="(line, i) in pageLines"
+              :key="i"
+              class="reading-line"
+              :class="{ current: i === cursorInPage }"
+              @click="jumpLine(i)"
+            >{{ line || '\u00a0' }}</div>
+          </div>
+
+          <div class="reading-ops">
+            <el-button size="small" @click="prevLine(1)">上一行</el-button>
+            <el-button size="small" @click="nextLine(1)">下一行</el-button>
+            <el-button size="small" @click="prevLine(10)">上一页</el-button>
+            <el-button size="small" @click="nextLine(10)">下一页</el-button>
+            <span class="key-hint">Ctrl+↑/↓ 行 · Shift+↑/↓ 翻页 · Ctrl+R 开关底部条</span>
+          </div>
+        </template>
+        <div v-else class="empty-hint">选择或导入一本书开始阅读</div>
+      </section>
+    </div>
+
+    <div class="reader-settings">
+      <span>每行字数</span>
+      <el-input-number
+        :model-value="reader.columns"
+        :min="10"
+        :max="200"
+        size="small"
+        controls-position="right"
+        @change="(v) => setColumns(v)"
+      />
+      <el-switch :model-value="reader.barVisible" @change="toggleBar" active-text="底部阅读条" />
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { computed, onMounted, ref } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { decodeText, splitChapters, parseEpub } from '@/features/reader/parse.js'
+import { listBooks, addBook, removeBook } from '@/features/reader/store.js'
+import {
+  reader, percent, restore, openBook, gotoChapter,
+  nextLine, prevLine, setColumns, toggleBar
+} from '@/features/reader/state.js'
+
+const books = ref([])
+const error = ref('')
+/** 正文窗口展示的行数（不是状态栏那一行） */
+const PAGE = 40
+
+const pageStart = computed(() => Math.max(0, reader.off - Math.floor(PAGE / 2)))
+const pageLines = computed(() => reader.lines.slice(pageStart.value, pageStart.value + PAGE))
+const cursorInPage = computed(() => reader.off - pageStart.value)
+
+async function refresh() {
+  books.value = await listBooks()
+}
+
+async function select(id) {
+  if (await openBook(id)) error.value = ''
+}
+
+function del(id) {
+  ElMessageBox.confirm('确定把这本从书架移除？阅读进度也会一起删除。', '移除书籍', {
+    type: 'warning', confirmButtonText: '移除', cancelButtonText: '取消'
+  }).then(async () => {
+    await removeBook(id)
+    if (reader.book && reader.book.id === id) {
+      reader.book = null
+      reader.lines = []
+    }
+    await refresh()
+  }).catch(() => {})
+}
+
+function jumpLine(i) {
+  reader.off = pageStart.value + i
+  if (reader.off >= reader.lines.length) reader.off = reader.lines.length - 1
+}
+
+async function onPick(e) {
+  const files = Array.from(e.target.files || [])
+  e.target.value = ''
+  for (const f of files) {
+    try {
+      const buf = await f.arrayBuffer()
+      let chapters = []
+      if (/\.epub$/i.test(f.name)) {
+        chapters = await parseEpub(buf)
+      } else {
+        chapters = splitChapters(decodeText(buf))
+      }
+      if (!chapters.length) throw new Error('没有解析到内容')
+      const id = await addBook({ name: f.name.replace(/\.(txt|epub)$/i, ''), format: /\.epub$/i.test(f.name) ? 'epub' : 'txt', chapters, size: buf.byteLength })
+      await refresh()
+      await openBook(id)
+      ElMessage.success('《' + f.name + '》已导入，共 ' + chapters.length + ' 章')
+    } catch (err) {
+      error.value = f.name + '：' + (err && err.message ? err.message : '解析失败')
+      ElMessage.error(error.value)
+    }
+  }
+}
+
+onMounted(async () => {
+  await refresh()
+  if (!reader.book) await restore()
+})
+</script>
+
+<style scoped>
+.reader-panel { display: flex; flex-direction: column; height: 100%; }
+.panel-header { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; font-weight: 600; }
+.upload-btn {
+  font-size: 12px; font-weight: 400; cursor: pointer; padding: 4px 10px;
+  border: 1px solid var(--border-color, #3c3c3c); border-radius: 4px;
+}
+.upload-btn input { display: none; }
+.reader-error { margin: 0 12px 6px; font-size: 12px; color: var(--danger-color, #f44747); }
+.reader-body { flex: 1; display: flex; min-height: 0; }
+.shelf { width: 190px; border-right: 1px solid var(--border-color, #3c3c3c); overflow: auto; }
+.shelf-title { padding: 6px 10px; font-size: 12px; color: var(--text-secondary, #999); }
+.shelf-item { display: flex; align-items: center; gap: 6px; padding: 6px 10px; cursor: pointer; font-size: 12px; }
+.shelf-item.active { background: rgba(0, 122, 204, 0.14); }
+.shelf-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.shelf-meta { color: var(--text-secondary, #999); }
+.shelf-del { opacity: .5; padding: 0 4px; }
+.shelf-del:hover { opacity: 1; color: var(--danger-color, #f44747); }
+.reading { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.chapter-bar { display: flex; gap: 10px; align-items: center; padding: 8px 12px; }
+.chapter-select { width: 260px; }
+.reading-progress { font-size: 12px; color: var(--text-secondary, #999); }
+.reading-text { flex: 1; overflow: auto; padding: 0 12px; font-size: 14px; line-height: 1.8; }
+.reading-line { cursor: pointer; }
+.reading-line.current { background: rgba(0, 122, 204, 0.16); border-radius: 3px; }
+.reading-ops { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-top: 1px solid var(--border-color, #3c3c3c); }
+.key-hint { font-size: 11px; color: var(--text-secondary, #999); }
+.reader-settings { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-top: 1px solid var(--border-color, #3c3c3c); font-size: 12px; }
+</style>

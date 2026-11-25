@@ -35,6 +35,16 @@
         </div>
         <div
             class="nav-btn"
+            :class="{ active: currentRoute === 'reader' }"
+            @click="state.currentRoute = 'reader'"
+            title="摸鱼阅读"
+        >
+          <el-icon :size="20">
+            <Notebook/>
+          </el-icon>
+        </div>
+        <div
+            class="nav-btn"
             :class="{ active: currentRoute === 'users' }"
             @click="state.currentRoute = 'users'"
             title="在线列表"
@@ -63,6 +73,8 @@
       <keep-alive>
         <component :is="currentView"/>
       </keep-alive>
+      <!-- 底部阅读条：Ctrl+↑/↓ 翻行、Shift+↑/↓ 翻页 -->
+      <ReaderBar />
     </el-main>
   </el-container>
 
@@ -94,10 +106,13 @@
 <script setup>
 import {computed, ref, onBeforeUnmount, onMounted} from 'vue'
 import {state} from './store.js'
+import { restore as restoreReader } from '@/features/reader/state.js'
 import {isDark, toggleTheme} from '@/composables/useTheme.js'
 import { useSettingsStore, matchShortcut } from '@/stores/settingsStore.js'
 import ChatPanel from '@/views/chat/ChatPanel.vue'
 import BrowserPanel from '@/views/tools/BrowserPanel.vue'
+import ReaderPanel from '@/views/tools/ReaderPanel.vue'
+import ReaderBar from '@/components/ReaderBar.vue'
 import GamePanel from '@/views/game/GamePanel.vue'
 import OnlineUsersPanel from '@/views/chat/OnlineUsersPanel.vue'
 import StyleEditor from '@/views/settings/StyleEditor.vue'
@@ -121,6 +136,7 @@ const VIEW_MAP = {
   games: GamePanel,
   users: OnlineUsersPanel,
   'style-editor': StyleEditor,
+  reader: ReaderPanel,
   settings: SettingsPanel
 }
 const currentView = computed(() => VIEW_MAP[currentRoute.value] || ChatPanel)
@@ -224,6 +240,8 @@ function onGlobalKeydown(e) {
 }
 
 onMounted(() => {
+  // 恢复上次读的书，让底部阅读条直接可用
+  try { restoreReader().catch(function () {}) } catch (e) {}
   window.addEventListener('keydown', onGlobalKeydown)
 })
 
