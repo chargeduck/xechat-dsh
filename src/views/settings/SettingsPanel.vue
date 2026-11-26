@@ -400,6 +400,14 @@ const DEFAULT_SHORTCUTS = {
   theme: DEFAULT_SHORTCUT_THEME,
   opacity0: DEFAULT_SHORTCUT_OPACITY_0,
   opacity1: DEFAULT_SHORTCUT_OPACITY_1,
+  panic: DEFAULT_SHORTCUT_PANIC,
+  readerPrev: { ctrl: true, alt: true, shift: false, key: 'ArrowUp' },
+  readerNext: { ctrl: true, alt: true, shift: false, key: 'ArrowDown' },
+  readerPrevPage: { ctrl: true, alt: true, shift: true, key: 'ArrowUp' },
+  readerNextPage: { ctrl: true, alt: true, shift: true, key: 'ArrowDown' },
+  readerAuto: { ctrl: true, alt: true, shift: false, key: 'a' },
+  readerBoss: { ctrl: true, alt: false, shift: false, key: 'm' },
+  readerImport: { ctrl: true, alt: true, shift: false, key: 'o' },
   panic: DEFAULT_SHORTCUT_PANIC
 }
 
@@ -409,7 +417,14 @@ const shortcutItems = [
   { type: 'opacity0', label: '透明度 0%（全透明）', getter: 'shortcutOpacity0', setter: 'setShortcutOpacity0' },
   { type: 'opacity1', label: '透明度 100%', getter: 'shortcutOpacity1', setter: 'setShortcutOpacity1' },
   { type: 'theme', label: '切换主题', getter: 'shortcutTheme', setter: 'setShortcutTheme' },
-  { type: 'panic', label: '紧急模式（老板键）', getter: 'shortcutPanic', setter: 'setShortcutPanic' }
+  { type: 'panic', label: '紧急模式（老板键）', getter: 'shortcutPanic', setter: 'setShortcutPanic' },
+  { type: 'readerPrev', label: '阅读：上一行', getter: 'readerPrev', setter: 'setReaderPrev' },
+  { type: 'readerNext', label: '阅读：下一行', getter: 'readerNext', setter: 'setReaderNext' },
+  { type: 'readerPrevPage', label: '阅读：上一页', getter: 'readerPrevPage', setter: 'setReaderPrevPage' },
+  { type: 'readerNextPage', label: '阅读：下一页', getter: 'readerNextPage', setter: 'setReaderNextPage' },
+  { type: 'readerAuto', label: '阅读：开关自动阅读', getter: 'readerAuto', setter: 'setReaderAuto' },
+  { type: 'readerBoss', label: '阅读：老板键（伪装 Hello World）', getter: 'readerBoss', setter: 'setReaderBoss' },
+  { type: 'readerImport', label: '阅读：导入小说', getter: 'readerImport', setter: 'setReaderImport' }
 ]
 
 /** 快捷键录制态：null | 'minus' | 'plus' | 'opacity0' | 'opacity1' | 'theme' | 'panic' */

@@ -14,7 +14,7 @@
   - 书库导出 / 导入（JSON，含正文与进度），换机器继续读
 - **DSH 端快捷键**（对齐 VSCode 扩展键位）：`Ctrl+M` 老板键（正文伪装成 `Hello, world!` 并收起面板，再按恢复）、
   `Ctrl+Alt+↑/↓` 翻行、加 `Shift` 翻页、`Ctrl+Alt+A` 开关自动阅读、`Ctrl+Alt+O` 打开阅读页并导入；
-  面板收起（display:none）时快捷键依然有效
+  面板收起（display:none）时快捷键依然有效；键位在「设置 → 快捷键」里可自行录制（默认 Ctrl+Alt+↑/↓、Ctrl+Alt+A、Ctrl+M、Ctrl+Alt+O）
 - **顶部状态条**：小说当前行显示在窗口标题栏右侧空白区（`shell.overlay`，pointer-events:none，不挡菜单与拖拽）
 - **设置页**新增「摸鱼阅读」区块：每行字数、自动阅读开关、间隔（毫秒）、底部阅读条
 - **中继连接**开关：跨塘可关闭中继直连

@@ -28,7 +28,17 @@ export const DEFAULT_SHORTCUT_OPACITY_1 = { ctrl: true, alt: true, shift: false,
 /** 紧急模式默认快捷键：Ctrl+Alt+P */
 export const DEFAULT_SHORTCUT_PANIC = { ctrl: true, alt: true, shift: false, key: 'P' }
 
+/** 摸鱼阅读默认快捷键（与 VSCode 扩展的键位一致） */
+export const DEFAULT_SHORTCUT_READER_NEXT = { ctrl: true, alt: true, shift: false, key: 'ArrowDown' }
+export const DEFAULT_SHORTCUT_READER_PREV = { ctrl: true, alt: true, shift: false, key: 'ArrowUp' }
+export const DEFAULT_SHORTCUT_READER_NEXT_PAGE = { ctrl: true, alt: true, shift: true, key: 'ArrowDown' }
+export const DEFAULT_SHORTCUT_READER_PREV_PAGE = { ctrl: true, alt: true, shift: true, key: 'ArrowUp' }
+export const DEFAULT_SHORTCUT_READER_AUTO = { ctrl: true, alt: true, shift: false, key: 'a' }
+export const DEFAULT_SHORTCUT_READER_BOSS = { ctrl: true, alt: false, shift: false, key: 'm' }
+export const DEFAULT_SHORTCUT_READER_IMPORT = { ctrl: true, alt: true, shift: false, key: 'o' }
+
 const defaults = {
+  transportMode: 'auto',
   /** 插件整体透明度：0.1 ~ 1，默认 1（不透明） */
   pluginOpacity: 1,
   /** 游戏面板透明度：0.1 ~ 1，默认 1（不透明），GamePanel 播放浮层使用，与设置面板联动 */
@@ -45,6 +55,18 @@ const defaults = {
   shortcutOpacity1: DEFAULT_SHORTCUT_OPACITY_1,
   /** 紧急模式快捷键：Ctrl+Alt+P */
   shortcutPanic: DEFAULT_SHORTCUT_PANIC,
+  /** 阅读：下一行 / 上一行 */
+  readerNext: DEFAULT_SHORTCUT_READER_NEXT,
+  readerPrev: DEFAULT_SHORTCUT_READER_PREV,
+  /** 阅读：下一页 / 上一页（10 行） */
+  readerNextPage: DEFAULT_SHORTCUT_READER_NEXT_PAGE,
+  readerPrevPage: DEFAULT_SHORTCUT_READER_PREV_PAGE,
+  /** 阅读：开关自动阅读 */
+  readerAuto: DEFAULT_SHORTCUT_READER_AUTO,
+  /** 阅读：老板键（伪装成 Hello World） */
+  readerBoss: DEFAULT_SHORTCUT_READER_BOSS,
+  /** 阅读：导入小说 */
+  readerImport: DEFAULT_SHORTCUT_READER_IMPORT,
   /** 紧急模式内容：图片 URL 或网页地址，空则不展示内容 */
   panicUrl: '',
   /** @提醒通知等级：1 正常（ElNotification 标准卡片）/ 2 隐晦（右下角低调轻提示 3s）/ 3 关闭；默认 2（摸鱼场景低调优先） */
@@ -52,46 +74,12 @@ const defaults = {
   /** 管理员 Token：登录时作为 LOGIN 的 token 字段上报，与服务端 application.yml 的 token 一致即获得管理员权限 */
   adminToken: '',
   /**
-   * 内置浏览器配色模式：
-   *  - 'auto'  跟随当前主题（深色主题下套深色外壳，亮色主题下套亮色外壳）
-   *  - 'dark'  始终深色外壳
-   *  - 'light' 始终浅色外壳
-   *  - 'off'   不做任何处理（旧行为，页面未加载时白底）
-   *
-   * 注意：内置浏览器是 `<iframe>`，跨源站点受同源策略保护，
-   * 插件无法读写其内部 DOM，因此这里只能是**容器级**配色 +
-   * 加载前底色，无法像 DarkReader 那样逐元素反色。
-   */
-  browserTheme: 'auto',
-  /**
-   * 网页降亮强度：0 ~ 0.6。
-   * 通过半透明遮罩压暗 iframe 区域，缓解深色界面里整块白屏的刺眼感。
-   * 0 关闭。遮罩 pointer-events: none，不影响页面内点击与滚动。
-   */
-  browserDim: 0.25,
-  /**
-   * 界面极简模式：true = 隐藏左侧导航栏，只留聊天区（消息列表 + 输入框）；
-   * 其它页面（浏览器/游戏/在线列表/设置）改由 #browser/#games/#users/#settings 命令打开。
-   * 开关入口：右上角悬浮按钮，或 #ui 0/1 命令（#minimal 等价 #ui 1）。
+   * 界面极简模式：true 时隐藏左侧导航栏，主区域只留聊天消息 + 输入框，
+   * 其它页面（工具/浏览器/游戏/在线列表/设置）改由 #tools/#browser/#games/#users/#settings 命令打开。
+   * 开关入口：右上角悬浮按钮，或 #ui 0/1 命令。
    */
   minimalMode: false
 }
-
-/** 合法的浏览器配色模式 */
-export const BROWSER_THEMES = ['auto', 'dark', 'light', 'off']
-
-/** 规整浏览器配色模式，非法回落到 'auto' */
-export function normalizeBrowserTheme(raw) {
-  return BROWSER_THEMES.includes(raw) ? raw : 'auto'
-}
-
-/** 规整降亮强度到 0 ~ 0.6 */
-export function normalizeBrowserDim(raw) {
-  const n = Number(raw)
-  if (!Number.isFinite(n)) return 0.25
-  return Math.min(0.6, Math.max(0, Math.round(n * 100) / 100))
-}
-
 /** 解析辅助：将存储值规整为 { ctrl, alt, shift, key }，非法返回 null */
 export function normalizeShortcut(raw) {
   if (!raw || typeof raw !== 'object') return null
@@ -140,6 +128,7 @@ export const useSettingsStore = defineStore('settings', {
   state: () => {
     const saved = loadSettings() || {}
     return {
+      transportMode: saved.transportMode ?? defaults.transportMode,
       pluginOpacity: saved.pluginOpacity ?? defaults.pluginOpacity,
       gamePanelOpacity: saved.gamePanelOpacity ?? defaults.gamePanelOpacity,
       shortcutPlus: normalizeShortcut(saved.shortcutPlus) || defaults.shortcutPlus,
@@ -148,16 +137,25 @@ export const useSettingsStore = defineStore('settings', {
       shortcutOpacity0: normalizeShortcut(saved.shortcutOpacity0) || defaults.shortcutOpacity0,
       shortcutOpacity1: normalizeShortcut(saved.shortcutOpacity1) || defaults.shortcutOpacity1,
       shortcutPanic: normalizeShortcut(saved.shortcutPanic) || defaults.shortcutPanic,
+      readerNext: normalizeShortcut(saved.readerNext) || defaults.readerNext,
+      readerPrev: normalizeShortcut(saved.readerPrev) || defaults.readerPrev,
+      readerNextPage: normalizeShortcut(saved.readerNextPage) || defaults.readerNextPage,
+      readerPrevPage: normalizeShortcut(saved.readerPrevPage) || defaults.readerPrevPage,
+      readerAuto: normalizeShortcut(saved.readerAuto) || defaults.readerAuto,
+      readerBoss: normalizeShortcut(saved.readerBoss) || defaults.readerBoss,
+      readerImport: normalizeShortcut(saved.readerImport) || defaults.readerImport,
       panicUrl: saved.panicUrl ?? defaults.panicUrl,
       msgNotify: normalizeNotifyLevel(saved.msgNotify) ?? defaults.msgNotify,
       adminToken: saved.adminToken ?? defaults.adminToken,
-      browserTheme: normalizeBrowserTheme(saved.browserTheme),
-      browserDim: normalizeBrowserDim(saved.browserDim),
       minimalMode: saved.minimalMode ?? defaults.minimalMode
     }
   },
 
   actions: {
+    setTransportMode(mode) {
+      this.transportMode = mode
+      this.persist()
+    },
     setPluginOpacity(value) {
       this.pluginOpacity = value
       this.persist()
@@ -190,6 +188,34 @@ export const useSettingsStore = defineStore('settings', {
       this.shortcutPanic = normalizeShortcut(value) || this.shortcutPanic
       this.persist()
     },
+    setReaderNext(value) {
+      this.readerNext = normalizeShortcut(value) || this.readerNext
+      this.persist()
+    },
+    setReaderPrev(value) {
+      this.readerPrev = normalizeShortcut(value) || this.readerPrev
+      this.persist()
+    },
+    setReaderNextPage(value) {
+      this.readerNextPage = normalizeShortcut(value) || this.readerNextPage
+      this.persist()
+    },
+    setReaderPrevPage(value) {
+      this.readerPrevPage = normalizeShortcut(value) || this.readerPrevPage
+      this.persist()
+    },
+    setReaderAuto(value) {
+      this.readerAuto = normalizeShortcut(value) || this.readerAuto
+      this.persist()
+    },
+    setReaderBoss(value) {
+      this.readerBoss = normalizeShortcut(value) || this.readerBoss
+      this.persist()
+    },
+    setReaderImport(value) {
+      this.readerImport = normalizeShortcut(value) || this.readerImport
+      this.persist()
+    },
     setPanicUrl(value) {
       this.panicUrl = (value || '').trim()
       this.persist()
@@ -207,23 +233,14 @@ export const useSettingsStore = defineStore('settings', {
       this.adminToken = (value || '').trim()
       this.persist()
     },
-    /** 设置内置浏览器配色模式 */
-    setBrowserTheme(value) {
-      this.browserTheme = normalizeBrowserTheme(value)
-      this.persist()
-    },
-    /** 设置网页降亮强度（0 ~ 0.6） */
-    setBrowserDim(value) {
-      this.browserDim = normalizeBrowserDim(value)
-      this.persist()
-    },
-    /** 切换界面极简模式（true = 极简，只留聊天区与输入框） */
+    /** 切换界面极简模式（true=极简，只留聊天区与输入框） */
     setMinimalMode(value) {
       this.minimalMode = !!value
       this.persist()
     },
     persist() {
       saveSettings({
+        transportMode: this.transportMode,
         pluginOpacity: this.pluginOpacity,
         gamePanelOpacity: this.gamePanelOpacity,
         shortcutPlus: this.shortcutPlus,
@@ -235,8 +252,6 @@ export const useSettingsStore = defineStore('settings', {
         panicUrl: this.panicUrl,
         msgNotify: this.msgNotify,
         adminToken: this.adminToken,
-        browserTheme: this.browserTheme,
-        browserDim: this.browserDim,
         minimalMode: this.minimalMode
       })
     }

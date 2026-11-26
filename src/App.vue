@@ -107,7 +107,7 @@
 import {computed, ref, onBeforeUnmount, onMounted} from 'vue'
 import {state} from './store.js'
 import { restore as restoreReader } from '@/features/reader/state.js'
-import { initDshShortcuts } from '@/features/reader/dsh-host.js'
+import { initReaderHotkeys } from '@/features/reader/hotkeys.js'
 import {isDark, toggleTheme} from '@/composables/useTheme.js'
 import { useSettingsStore, matchShortcut } from '@/stores/settingsStore.js'
 import ChatPanel from '@/views/chat/ChatPanel.vue'
@@ -242,7 +242,7 @@ function onGlobalKeydown(e) {
 
 onMounted(() => {
   // DSH 没有扩展级 keybinding：自己挂一套 window 级快捷键（Ctrl+M / Ctrl+Alt+↑↓ 等）
-  try { initDshShortcuts() } catch (e) {}
+  try { initReaderHotkeys() } catch (e) {}
   try { window.__xechatDshState = state } catch (e) {}
   // 恢复上次读的书，让底部阅读条直接可用
   try { restoreReader().catch(function () {}) } catch (e) {}
