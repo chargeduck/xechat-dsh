@@ -14,6 +14,7 @@ export const reader = reactive({
   lines: [],           // 当前章节分页后的行
   barVisible: true,    // 底部条是否显示
   autoPlay: false,     // 自动阅读：按固定间隔自动翻行
+  disguised: false,   // 老板键：状态栏/顶部条替换成 Hello World
   autoMs: 1500,        // 自动阅读间隔（毫秒，默认 1.5 秒）
   error: ''
 })
@@ -100,12 +101,19 @@ let saveTimer = null
  * 把当前行广播出去：DSH 的顶部状态条（React 外壳）监听这个事件。
  * 浏览器 / IDEA / VSCode 里没人监听，开销可忽略。
  */
+/** 老板键：切换伪装。伪装期间顶部条/底部条只显示 Hello World */
+export function toggleDisguise() {
+  reader.disguised = !reader.disguised
+  broadcastLine()
+  return reader.disguised
+}
+
 function broadcastLine() {
   try {
     if (typeof window === 'undefined') return
     window.dispatchEvent(new CustomEvent('xechat:reader-line', {
       detail: {
-        text: currentLine.value || '',
+        text: reader.disguised ? 'Hello, world!' : (currentLine.value || ''),
         book: reader.book ? reader.book.name : '',
         percent: percent.value
       }

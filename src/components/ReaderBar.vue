@@ -2,7 +2,7 @@
   <div v-if="visible" class="reader-bar" :title="'《' + reader.book.name + '》' + chapterTitle">
     <span class="rb-book">{{ reader.book.name }}</span>
     <span class="rb-sep">·</span>
-    <span class="rb-line">{{ line || '（空行）' }}</span>
+    <span class="rb-line">{{ reader.disguised ? 'Hello, world!' : (line || '（空行）') }}</span>
     <span class="rb-stat">{{ percent }}%</span>
     <!-- 自动阅读：播放/暂停 + 间隔（点数字换 2/3/5/8 秒） -->
     <button class="rb-btn" :class="{ on: reader.autoPlay }"

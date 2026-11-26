@@ -154,6 +154,18 @@ export function DockShell(_props: DockShellProps) {
   /** 整块是否可见（collapsed 时保留活动栏；paused 时整块隐藏）。 */
   const mounted = layout.visibility !== 'paused'
 
+  /** 外部（Vue 快捷键）请求开合面板：老板键 Ctrl+M 用 */
+  useEffect(() => {
+    const onToggle = () => {
+      const cur = layoutRef.current
+      patch({ open: !(cur.open && cur.visibility === 'open') })
+    }
+    window.addEventListener('xechat:dsh-toggle-panel', onToggle)
+    return () => window.removeEventListener('xechat:dsh-toggle-panel', onToggle)
+    // patch 依赖 layoutRef，不需要重新绑定
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   const patch = (next: Partial<DockLayout>) => {
     const merged = { ...layoutRef.current, ...next }
     // 高度变化时把顶边偏移一起收敛，避免「拖出可视区 / 铺满后残留偏移」。

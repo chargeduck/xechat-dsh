@@ -1,5 +1,17 @@
 # ChangeLog
 
+## 0.3.1
+
+### 新增
+
+- **DSH 端快捷键**（对齐 VSCode 扩展的键位）：
+  - `Ctrl+M` 老板键：正文伪装成 `Hello, world!` 并收起面板，再按一次恢复
+  - `Ctrl+Alt+↑ / ↓` 上一行 / 下一行，加 `Shift` 翻页（10 行）
+  - `Ctrl+Alt+A` 开关自动阅读
+  - `Ctrl+Alt+O` 打开「摸鱼阅读」并弹出导入文件选择
+  - 面板收起（display:none）时快捷键依然有效
+- **顶部状态条**：小说当前行显示在窗口标题栏右侧空白区（`shell.overlay`，pointer-events:none 不挡菜单与拖拽）
+
 ## 0.3.0
 
 ### 新增
