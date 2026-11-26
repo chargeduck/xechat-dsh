@@ -13,13 +13,20 @@ export const reader = reactive({
   columns: 50,         // 一行多少列
   lines: [],           // 当前章节分页后的行
   barVisible: true,    // 底部条是否显示
+  autoPlay: false,     // 自动阅读：按固定间隔自动翻行
+  autoSec: 3,          // 自动阅读间隔（秒）
   error: ''
 })
 
 const KEY_COLS = 'xechat_reader_columns'
+const KEY_AUTO_SEC = 'xechat_reader_auto_sec'
 try {
   const c = parseInt(localStorage.getItem(KEY_COLS) || '', 10)
   if (c > 10 && c < 400) reader.columns = c
+} catch (e) {}
+try {
+  const a = parseInt(localStorage.getItem(KEY_AUTO_SEC) || '', 10)
+  if (a >= 1 && a <= 60) reader.autoSec = a
 } catch (e) {}
 
 /** 统计用：全书进度百分比 */
@@ -59,6 +66,7 @@ export async function openBook(id) {
   repaginate()
   reader.off = Math.min(reader.off, Math.max(0, reader.lines.length - 1))
   reader.error = ''
+  restartAutoTimer()
   return true
 }
 
@@ -124,4 +132,43 @@ export function prevLine(step = 1) {
 
 export function toggleBar() {
   reader.barVisible = !reader.barVisible
+}
+
+// ---------------------------------------------------------------- 自动阅读
+
+let autoTimer = null
+
+/** 自动阅读定时器：只有开了自动 + 有书才跑；间隔变了就重建 */
+function restartAutoTimer() {
+  if (autoTimer) {
+    clearInterval(autoTimer)
+    autoTimer = null
+  }
+  if (!reader.autoPlay || !reader.book) return
+  const ms = Math.max(800, Math.round((reader.autoSec || 3) * 1000))
+  autoTimer = setInterval(() => {
+    if (!reader.autoPlay || !reader.book) return
+    // 到了最后一章最后一行就停下，别空转
+    const lastCh = reader.book.chapters.length - 1
+    if (reader.ch >= lastCh && reader.off >= reader.lines.length - 1) {
+      reader.autoPlay = false
+      restartAutoTimer()
+      return
+    }
+    nextLine(1)
+  }, ms)
+}
+
+/** 开/关自动阅读，返回切换后的状态 */
+export function toggleAuto() {
+  reader.autoPlay = !reader.autoPlay
+  restartAutoTimer()
+  return reader.autoPlay
+}
+
+/** 设置自动阅读间隔（秒） */
+export function setAutoSec(n) {
+  reader.autoSec = Math.min(60, Math.max(1, n | 0))
+  try { localStorage.setItem(KEY_AUTO_SEC, String(reader.autoSec)) } catch (e) {}
+  restartAutoTimer()
 }

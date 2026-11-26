@@ -89,6 +89,19 @@
         @change="(v) => setColumns(v)"
       />
       <el-switch :model-value="reader.barVisible" @change="toggleBar" active-text="底部阅读条" />
+      <el-switch :model-value="reader.autoPlay" @change="onToggleAuto" active-text="自动阅读" />
+      <span v-if="reader.autoPlay">每</span>
+      <el-input-number
+        v-if="reader.autoPlay"
+        :model-value="reader.autoSec"
+        :min="1"
+        :max="60"
+        size="small"
+        controls-position="right"
+        style="width:96px"
+        @change="(v) => setAutoSec(v)"
+      />
+      <span v-if="reader.autoPlay">秒翻一行</span>
     </div>
   </div>
 </template>
@@ -100,13 +113,19 @@ import { decodeText, splitChapters, parseEpub } from '@/features/reader/parse.js
 import { listBooks, addBook, removeBook, exportAll, importAll } from '@/features/reader/store.js'
 import {
   reader, percent, restore, openBook, gotoChapter,
-  nextLine, prevLine, setColumns, toggleBar
+  nextLine, prevLine, setColumns, toggleBar, toggleAuto, setAutoSec
 } from '@/features/reader/state.js'
 
 const books = ref([])
 const error = ref('')
 /** 正文窗口展示的行数（不是状态栏那一行） */
 const PAGE = 40
+
+/** 自动阅读开关（element-plus 的 change 给的是新值，这里直接切） */
+function onToggleAuto() {
+  const on = toggleAuto()
+  if (on && !reader.lines.length) ElMessage.info('先选一本书再开自动阅读')
+}
 
 const pageStart = computed(() => Math.max(0, reader.off - Math.floor(PAGE / 2)))
 const pageLines = computed(() => reader.lines.slice(pageStart.value, pageStart.value + PAGE))
