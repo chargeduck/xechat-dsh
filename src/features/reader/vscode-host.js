@@ -4,12 +4,31 @@
  * 浏览器 / JCEF / OpenIDEA 里没有 acquireVsCodeApi，模块直接失活（返回 false）。
  */
 import { ref, watch } from 'vue'
-import { reader, currentLine, percent, nextLine, prevLine, toggleBar, toggleAuto } from './state.js'
+import { reader, currentLine, percent, nextLine, prevLine, toggleBar, toggleAuto, applyHostState, setHostNotifier } from './state.js'
 
 let api = null
 let inited = false
 /** 扩展确认接管状态栏后才隐藏页面内底部条（否则两边都没有） */
 export const hostBarReady = ref(false)
+
+/**
+ * 把面板里导入的书推给扩展，让 IDE 状态栏也能翻这本书（之后面板关掉照样能用）。
+ * 单本超过约 20MB 字符时不推，避免消息过大。
+ */
+export function publishBookToHost(name, chapters) {
+  if (!api || !Array.isArray(chapters) || !chapters.length) return false
+  const chars = chapters.reduce((n, c) => n + (c && c.content ? c.content.length : 0), 0)
+  if (chars > 20000000) {
+    console.warn('[xechat] 书籍过大，未同步到 IDE 状态栏（' + chars + ' 字符）')
+    return false
+  }
+  try {
+    api.postMessage({ type: 'reader:book', name: name || '', chapters })
+    return true
+  } catch (e) {
+    return false
+  }
+}
 
 /** 是否运行在 VSCode webview 里 */
 export function isVscodeHost() {
@@ -48,6 +67,7 @@ export function initVscodeReader() {
   window.addEventListener('message', (e) => {
     const m = e.data || {}
     if (m.type === 'reader:ack') { hostBarReady.value = true; return }
+    if (m.type === 'reader:host-state') { applyHostState(m.state || {}); return }
     if (m.type !== 'reader:cmd') return
     switch (m.cmd) {
       case 'next': nextLine(1); break
@@ -58,6 +78,11 @@ export function initVscodeReader() {
       case 'auto': toggleAuto(); break
       default: break
     }
+  })
+
+  // 面板上的开关/间隔/列宽变化 → 通知扩展，让状态栏那边跟着变
+  setHostNotifier(function (kind, st) {
+    try { api.postMessage({ type: 'reader:set', kind: kind, state: st }) } catch (e) {}
   })
 
   // 先问一句：扩展在不在？在的话它回 reader:ack

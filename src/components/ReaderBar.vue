@@ -10,18 +10,21 @@
             @click.stop="toggleAuto()">
       {{ reader.autoPlay ? '⏸' : '▶' }}
     </button>
-    <button class="rb-speed" :title="'自动阅读间隔：' + reader.autoSec + ' 秒，点击切换'"
-            @click.stop="cycleSpeed">{{ reader.autoSec }}s</button>
+    <button class="rb-speed" :title="'自动阅读间隔：' + reader.autoMs + ' 毫秒，点击切换'"
+            @click.stop="cycleSpeed">{{ reader.autoMs }}ms</button>
   </div>
 </template>
 
 <script setup>
 import { computed, onMounted, onBeforeUnmount } from 'vue'
-import { reader, percent, currentLine, nextLine, prevLine, toggleAuto, setAutoSec } from '@/features/reader/state.js'
-import { initVscodeReader, hostBarReady } from '@/features/reader/vscode-host.js'
+import { reader, percent, currentLine, nextLine, prevLine, toggleAuto, setAutoMs } from '@/features/reader/state.js'
+import { initVscodeReader, isVscodeHost } from '@/features/reader/vscode-host.js'
 
-/** VSCode 里扩展接管状态栏后才隐藏页面内这条，避免两边都空 */
-const visible = computed(() => !!reader.book && reader.barVisible && !hostBarReady.value)
+/**
+ * VSCode 里一律不画页面内这条：小说只显示在 **IDE 底部状态栏**。
+ * （页面内这条会被误认为“插件底部”，而且会挤占聊天区空间）
+ */
+const visible = computed(() => !!reader.book && reader.barVisible && !isVscodeHost())
 const line = computed(() => currentLine.value)
 const chapterTitle = computed(() => {
   const c = reader.book && reader.book.chapters[reader.ch]
@@ -35,10 +38,10 @@ function inEditable(el) {
   return tag === 'input' || tag === 'textarea' || el.isContentEditable
 }
 
-const SPEEDS = [2, 3, 5, 8, 12]
+const SPEEDS = [1000, 1500, 2000, 3000]
 function cycleSpeed() {
-  const i = SPEEDS.indexOf(reader.autoSec)
-  setAutoSec(SPEEDS[(i + 1) % SPEEDS.length])
+  const i = SPEEDS.indexOf(reader.autoMs)
+  setAutoMs(SPEEDS[(i + 1) % SPEEDS.length])
 }
 
 function onKey(e) {

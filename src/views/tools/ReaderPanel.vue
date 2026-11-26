@@ -80,28 +80,33 @@
 
     <div class="reader-settings">
       <span>每行字数</span>
-      <el-input-number
-        :model-value="reader.columns"
-        :min="10"
-        :max="200"
-        size="small"
-        controls-position="right"
-        @change="(v) => setColumns(v)"
-      />
+      <!-- 左右分列步进：面板很窄，Element Plus 默认的上下堆叠按钮不好点 -->
+      <div class="stepper">
+        <button class="step-btn" title="减少" @click="bumpColumns(-1)">−</button>
+        <el-input
+          :model-value="String(reader.columns)"
+          size="small"
+          class="step-input"
+          @change="(v) => setColumns(parseInt(v, 10) || reader.columns)"
+        />
+        <button class="step-btn" title="增加" @click="bumpColumns(1)">+</button>
+      </div>
       <el-switch :model-value="reader.barVisible" @change="toggleBar" active-text="底部阅读条" />
       <el-switch :model-value="reader.autoPlay" @change="onToggleAuto" active-text="自动阅读" />
-      <span v-if="reader.autoPlay">每</span>
-      <el-input-number
-        v-if="reader.autoPlay"
-        :model-value="reader.autoSec"
-        :min="1"
-        :max="60"
-        size="small"
-        controls-position="right"
-        style="width:96px"
-        @change="(v) => setAutoSec(v)"
-      />
-      <span v-if="reader.autoPlay">秒翻一行</span>
+      <template v-if="reader.autoPlay">
+        <span>每</span>
+        <div class="stepper">
+          <button class="step-btn" title="减少" @click="bumpAuto(-100)">−</button>
+          <el-input
+            :model-value="String(reader.autoMs)"
+            size="small"
+            class="step-input"
+            @change="(v) => setAutoMs(parseInt(v, 10) || reader.autoMs)"
+          />
+          <button class="step-btn" title="增加" @click="bumpAuto(100)">+</button>
+        </div>
+        <span>毫秒翻一行</span>
+      </template>
     </div>
   </div>
 </template>
@@ -111,9 +116,10 @@ import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { decodeText, splitChapters, parseEpub } from '@/features/reader/parse.js'
 import { listBooks, addBook, removeBook, exportAll, importAll } from '@/features/reader/store.js'
+import { publishBookToHost } from '@/features/reader/vscode-host.js'
 import {
   reader, percent, restore, openBook, gotoChapter,
-  nextLine, prevLine, setColumns, toggleBar, toggleAuto, setAutoSec
+  nextLine, prevLine, setColumns, toggleBar, toggleAuto, setAutoMs
 } from '@/features/reader/state.js'
 
 const books = ref([])
@@ -152,6 +158,14 @@ function del(id) {
   }).catch(() => {})
 }
 
+/** 步进：列宽 1 列、间隔 100ms */
+function bumpColumns(delta) {
+  setColumns(reader.columns + delta)
+}
+function bumpAuto(delta) {
+  setAutoMs(reader.autoMs + delta)
+}
+
 function jumpLine(i) {
   reader.off = pageStart.value + i
   if (reader.off >= reader.lines.length) reader.off = reader.lines.length - 1
@@ -173,6 +187,8 @@ async function onPick(e) {
       const id = await addBook({ name: f.name.replace(/\.(txt|epub)$/i, ''), format: /\.epub$/i.test(f.name) ? 'epub' : 'txt', chapters, size: buf.byteLength })
       await refresh()
       await openBook(id)
+      // VSCode：把书交给扩展，面板关掉后仍可在状态栏翻行
+      try { publishBookToHost(f.name.replace(/\.(txt|epub)$/i, ''), chapters) } catch (e) {}
       ElMessage.success('《' + f.name + '》已导入，共 ' + chapters.length + ' 章')
     } catch (err) {
       error.value = f.name + '：' + (err && err.message ? err.message : '解析失败')
@@ -218,6 +234,10 @@ async function onImport(e) {
 onMounted(async () => {
   await refresh()
   if (!reader.book) await restore()
+  // 之前就在面板里导入过的书：打开阅读页时补一次同步，让状态栏也能翻
+  if (reader.book && reader.book.chapters && reader.book.chapters.length) {
+    try { publishBookToHost(reader.book.name, reader.book.chapters) } catch (e) {}
+  }
 })
 </script>
 
@@ -250,5 +270,18 @@ onMounted(async () => {
 .reading-line.current { background: rgba(0, 122, 204, 0.16); border-radius: 3px; }
 .reading-ops { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-top: 1px solid var(--border-color, #3c3c3c); }
 .key-hint { font-size: 11px; color: var(--text-secondary, #999); }
+/* 左右分列步进器 */
+.stepper { display: inline-flex; align-items: center; }
+.step-btn {
+  width: 24px; height: 24px; line-height: 1; padding: 0;
+  border: 1px solid var(--border-color, #3c3c3c);
+  background: transparent; color: inherit; cursor: pointer;
+  font-size: 14px; border-radius: 0;
+}
+.step-btn:first-child { border-radius: 4px 0 0 4px; }
+.step-btn:last-child { border-radius: 0 4px 4px 0; }
+.step-btn:hover { background: rgba(127, 127, 127, 0.18); }
+.step-input { width: 66px; }
+.step-input :deep(.el-input__wrapper) { border-radius: 0; }
 .reader-settings { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-top: 1px solid var(--border-color, #3c3c3c); font-size: 12px; }
 </style>

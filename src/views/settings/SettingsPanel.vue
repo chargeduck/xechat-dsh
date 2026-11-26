@@ -15,6 +15,39 @@
           </el-radio-group>
         </div>
       </div>
+      <!-- 摸鱼阅读：与工具页/底部条共用同一份状态 -->
+      <div class="setting-block">
+        <div class="block-title">摸鱼阅读</div>
+        <div class="setting-inline">
+          <div class="inline-label"><span>每行字数</span></div>
+          <el-input-number
+            :model-value="reader.columns"
+            :min="10"
+            :max="200"
+            size="small"
+            @change="(v) => setColumns(v)"
+          />
+        </div>
+        <div class="setting-inline">
+          <div class="inline-label"><span>自动阅读</span></div>
+          <el-switch :model-value="reader.autoPlay" @change="toggleAuto" />
+        </div>
+        <div v-if="reader.autoPlay" class="setting-inline">
+          <div class="inline-label"><span>间隔（毫秒）</span></div>
+          <el-input-number
+            :model-value="reader.autoMs"
+            :min="200"
+            :max="60000"
+            :step="100"
+            size="small"
+            @change="(v) => setAutoMs(v)"
+          />
+        </div>
+        <div class="setting-inline">
+          <div class="inline-label"><span>底部阅读条</span></div>
+          <el-switch :model-value="reader.barVisible" @change="toggleBar" />
+        </div>
+      </div>
       <!-- 网络连接：是否经 xechat 站点中继。中继会把大消息分帧，连 64KB 限制的塘也能发图 -->
       <div class="setting-block">
         <div class="block-title">网络连接</div>
@@ -225,6 +258,7 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { state } from '@/store.js'
+import { reader, setColumns, setAutoMs, toggleAuto, toggleBar } from '@/features/reader/state.js'
 import { isDark, toggleTheme } from '@/composables/useTheme.js'
 import {
   useSettingsStore,
