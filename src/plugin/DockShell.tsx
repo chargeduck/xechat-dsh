@@ -34,6 +34,7 @@ import {
 } from './layout.ts'
 import { loadXechatApp, type XechatAppHandle, type XechatAppModule } from './app-loader.ts'
 import { DOCK_CSS } from './styles.ts'
+import { TopStrip } from './TopStrip.tsx'
 
 /** 与 CSS 的 --xds-inset-bottom 保持一致：拖拽高度时按同一份余量算可用空间。 */
 const BOTTOM_INSET = 8
@@ -789,6 +790,8 @@ export function DockShell(_props: DockShellProps) {
     'div',
     { 'data-xechat-dsh': '' },
     createElement(DockStyle),
+    // 顶部状态条：小说当前行显示在菜单栏右侧空白处（纯展示、不挡点击）
+    createElement(TopStrip),
     restoreEntry,
     createElement(
       'div',

@@ -96,7 +96,25 @@ export async function restore() {
 
 let saveTimer = null
 /** 进度落库：翻行很频繁，节流 400ms */
+/**
+ * 把当前行广播出去：DSH 的顶部状态条（React 外壳）监听这个事件。
+ * 浏览器 / IDEA / VSCode 里没人监听，开销可忽略。
+ */
+function broadcastLine() {
+  try {
+    if (typeof window === 'undefined') return
+    window.dispatchEvent(new CustomEvent('xechat:reader-line', {
+      detail: {
+        text: currentLine.value || '',
+        book: reader.book ? reader.book.name : '',
+        percent: percent.value
+      }
+    }))
+  } catch (e) {}
+}
+
 function save() {
+  broadcastLine()
   if (!reader.book) return
   const id = reader.book.id
   const ch = reader.ch

@@ -5,6 +5,25 @@
  * 颜色跟随 DSH 的 `--dsw-*` 设计令牌，缺失时回落到中性色。
  */
 export const DOCK_CSS = `
+/* 顶部状态条：贴在窗口标题栏那一行，只显示小说当前行 */
+.xds-topstrip {
+  position: absolute;
+  top: 2px;
+  left: 200px;              /* 让开左上角的「应用 / 编辑」菜单 */
+  right: 170px;             /* 让开右上角的最小化 / 关闭按钮 */
+  height: 26px;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  z-index: 2147483000;
+  pointer-events: none;     /* 不挡菜单、不挡窗口拖拽 */
+  font-size: 12px;
+  line-height: 26px;
+  color: var(--dsh-text-secondary, rgba(255, 255, 255, 0.55));
+  opacity: 0.9;
+}
+.xds-topstrip-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 [data-xechat-dsh] {
   --xds-bg: var(--dsw-surface, #1e1e1e);
   --xds-bg-alt: var(--dsw-surface-raised, #252526);
