@@ -14,19 +14,19 @@ export const reader = reactive({
   lines: [],           // 当前章节分页后的行
   barVisible: true,    // 底部条是否显示
   autoPlay: false,     // 自动阅读：按固定间隔自动翻行
-  autoSec: 3,          // 自动阅读间隔（秒）
+  autoMs: 1500,        // 自动阅读间隔（毫秒，默认 1.5 秒）
   error: ''
 })
 
 const KEY_COLS = 'xechat_reader_columns'
-const KEY_AUTO_SEC = 'xechat_reader_auto_sec'
+const KEY_AUTO_MS = 'xechat_reader_auto_ms'
 try {
   const c = parseInt(localStorage.getItem(KEY_COLS) || '', 10)
   if (c > 10 && c < 400) reader.columns = c
 } catch (e) {}
 try {
-  const a = parseInt(localStorage.getItem(KEY_AUTO_SEC) || '', 10)
-  if (a >= 1 && a <= 60) reader.autoSec = a
+  const a = parseInt(localStorage.getItem(KEY_AUTO_MS) || '', 10)
+  if (a >= 200 && a <= 60000) reader.autoMs = a
 } catch (e) {}
 
 /** 统计用：全书进度百分比 */
@@ -44,14 +44,32 @@ function repaginate() {
   const ch = reader.book && reader.book.chapters[reader.ch]
   reader.lines = ch ? paginate(ch.content, reader.columns) : []
   if (reader.off >= reader.lines.length) reader.off = Math.max(0, reader.lines.length - 1)
+  settleOff()
+}
+
+/** 当前行是空行就顺延到下一个非空行（末尾回退） */
+function settleOff() {
+  const blank = (i) => {
+    const l = reader.lines[i]
+    return l === undefined || !String(l).trim()
+  }
+  let i = reader.off
+  while (i < reader.lines.length && blank(i)) i++
+  if (i >= reader.lines.length) {
+    i = Math.max(0, reader.off)
+    while (i > 0 && blank(i)) i--
+  }
+  reader.off = Math.max(0, Math.min(i, Math.max(0, reader.lines.length - 1)))
 }
 
 export function setColumns(n) {
+  // 交给 vscode-host 转发给扩展
   const cols = Math.min(400, Math.max(10, n | 0))
   reader.columns = cols
   try { localStorage.setItem(KEY_COLS, String(cols)) } catch (e) {}
   repaginate()
   save()
+  if (typeof notifyHost === 'function') notifyHost('columns')
 }
 
 /** 打开一本书并从上次进度继续（异步读 IndexedDB） */
@@ -110,6 +128,7 @@ export function nextLine(step = 1) {
   } else {
     reader.off = Math.max(0, target)
   }
+  settleOff()
   save()
 }
 
@@ -127,6 +146,7 @@ export function prevLine(step = 1) {
   } else {
     reader.off = target
   }
+  settleOff()
   save()
 }
 
@@ -145,7 +165,7 @@ function restartAutoTimer() {
     autoTimer = null
   }
   if (!reader.autoPlay || !reader.book) return
-  const ms = Math.max(800, Math.round((reader.autoSec || 3) * 1000))
+  const ms = Math.max(200, reader.autoMs || 1500)
   autoTimer = setInterval(() => {
     if (!reader.autoPlay || !reader.book) return
     // 到了最后一章最后一行就停下，别空转
@@ -160,15 +180,54 @@ function restartAutoTimer() {
 }
 
 /** 开/关自动阅读，返回切换后的状态 */
+let localAutoTimer = null
+export function stopLocalAuto() {
+  if (localAutoTimer) { clearInterval(localAutoTimer); localAutoTimer = null }
+}
+
 export function toggleAuto() {
   reader.autoPlay = !reader.autoPlay
+  notifyHost('auto')
   restartAutoTimer()
   return reader.autoPlay
 }
 
 /** 设置自动阅读间隔（秒） */
-export function setAutoSec(n) {
-  reader.autoSec = Math.min(60, Math.max(1, n | 0))
-  try { localStorage.setItem(KEY_AUTO_SEC, String(reader.autoSec)) } catch (e) {}
+export function setAutoMs(n) {
+  reader.autoMs = Math.min(60000, Math.max(200, n | 0))
+  try { localStorage.setItem(KEY_AUTO_MS, String(reader.autoMs)) } catch (e) {}
   restartAutoTimer()
+  notifyHost('autoMs')
+}
+
+/* ===================== VSCode 宿主同步 ===================== */
+/** 由 vscode-host 注册：面板状态变化时通知扩展 */
+let hostNotifier = null
+export function setHostNotifier(fn) { hostNotifier = fn }
+function notifyHost(kind) {
+  if (!hostNotifier) return
+  try { hostNotifier(kind, { autoPlay: reader.autoPlay, intervalMs: reader.autoMs, columns: reader.columns, ch: reader.ch, off: reader.off }) } catch (e) {}
+}
+
+/**
+ * 宿主（扩展）状态 → 面板：让面板的自动阅读开关/间隔/位置跟着扩展走。
+ * 仅在书名一致时应用位置，避免把 A 书的进度套到 B 书上。
+ */
+export function applyHostState(st) {
+  if (!st) return
+  if (typeof st.auto === 'boolean') reader.autoPlay = st.auto
+  if (st.intervalMs > 0) reader.autoMs = Math.min(60000, Math.max(200, st.intervalMs | 0))
+  if (st.columns > 0 && st.columns !== reader.columns) {
+    reader.columns = st.columns
+    repaginate()
+  }
+  if (reader.book && st.book && st.book === reader.book.name && Number.isInteger(st.ch)) {
+    const ch = Math.min(Math.max(0, st.ch), reader.book.chapters.length - 1)
+    if (ch !== reader.ch) { reader.ch = ch; repaginate() }
+    if (Number.isInteger(st.off)) {
+      reader.off = Math.min(Math.max(0, st.off), Math.max(0, reader.lines.length - 1))
+    }
+  }
+  // 面板自己的定时器交给宿主控制：宿主开着就停本地面板计时，避免双倍翻行
+  if (reader.autoPlay) stopLocalAuto()
 }
