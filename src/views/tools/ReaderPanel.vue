@@ -115,7 +115,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { decodeText, splitChapters, parseEpub } from '@/features/reader/parse.js'
-import { listBooks, addBook, removeBook, exportAll, importAll } from '@/features/reader/store.js'
+import { listBooks, addBook, removeBook, exportAll, importAll, storageMode, memoryOnlyIds } from '@/features/reader/store.js'
 import { publishBookToHost } from '@/features/reader/vscode-host.js'
 import {
   reader, percent, restore, openBook, gotoChapter,
@@ -124,6 +124,8 @@ import {
 
 const books = ref([])
 const error = ref('')
+/** 存储降级提示（openIDEA 等禁用 IndexedDB 的环境） */
+const storageHint = ref('')
 /** 正文窗口展示的行数（不是状态栏那一行） */
 const PAGE = 40
 
@@ -232,6 +234,11 @@ async function onImport(e) {
 }
 
 onMounted(async () => {
+  try {
+    const mode = await storageMode()
+    if (mode === 'ls') storageHint.value = '当前宿主禁用了 IndexedDB，书库改存 localStorage（约 5MB）；超大的书仅在本次会话有效，建议配合「导出书库」备份。'
+    if (memoryOnlyIds().length) storageHint.value = '有 ' + memoryOnlyIds().length + ' 本书超出 localStorage 容量，仅本次会话可读（刷新后需重新导入）。'
+  } catch (e) {}
   await refresh()
   if (!reader.book) await restore()
   // 之前就在面板里导入过的书：打开阅读页时补一次同步，让状态栏也能翻
@@ -267,6 +274,8 @@ onMounted(async () => {
 .reading-progress { font-size: 12px; color: var(--text-secondary, #999); }
 .reading-text { flex: 1; overflow: auto; padding: 0 12px; font-size: 14px; line-height: 1.8; }
 .reading-line { cursor: pointer; }
+.storage-hint { margin: 0 12px 6px; padding: 6px 8px; font-size: 11px; line-height: 1.5;
+  border-radius: 4px; background: rgba(230, 162, 60, 0.12); color: var(--text-secondary, #bbb); }
 .reading-line.current { background: rgba(0, 122, 204, 0.16); border-radius: 3px; }
 .reading-ops { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-top: 1px solid var(--border-color, #3c3c3c); }
 .key-hint { font-size: 11px; color: var(--text-secondary, #999); }
