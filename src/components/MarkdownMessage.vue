@@ -1,7 +1,7 @@
 <template>
   <!-- IMAGE 类型消息：展示下载图片按钮，点击后才加载展示 -->
   <div v-if="msgType === 'IMAGE' && fileName" class="image-msg">
-    <div v-if="content" class="image-msg-head">{{ content }}</div>
+    <div v-if="content" class="image-msg-head" v-html="imageHeadHtml"></div>
     <div v-if="!imageLoaded" class="image-msg-actions">
       <el-button size="small" type="primary" @click="loadImage">{{ isDirectImage ? '查看图片' : '下载图片' }}</el-button>
     </div>
@@ -229,6 +229,9 @@ const renderedHtml = computed(() => {
   // 换成的是本模块内置常量，不存在注入风险。
   return parsePlatformMarkup(md.render(preprocessFont(consoleTableToMarkdown(processed))))
 })
+
+/** 图片消息头：先转义再替换平台图标，否则会显示成占位符原文 */
+const imageHeadHtml = computed(() => parsePlatformMarkup(escapeHtmlText(props.content || '')))
 
 // IMAGE 消息：http(s) 直链原样展示；相对文件名由当前登录服务器推导 http 下载地址
 const isDirectImage = computed(() => {
