@@ -20,7 +20,7 @@
           </div>
         </div>
         <!-- 普通消息：Markdown 渲染 -->
-        <MarkdownMessage v-else :content="msg.text" :msg-type="msg.msgType" :file-name="msg.fileName" />
+        <MarkdownMessage v-else :content="msg.text" :msg-type="msg.msgType" :file-name="msg.fileName" :url="msg.url" />
       </div>
       <div v-if="chatStore.isEmpty" class="empty-hint">
         暂无消息
@@ -136,6 +136,7 @@ import { setChatStoreBridge, state } from '@/store.js'
 import { transport } from '@/transport/transport-manager.js'
 import { saveSession, loadSession, clearSession } from '@/session.js'
 import MarkdownMessage from '@/components/MarkdownMessage.vue'
+import { chatHttpBase } from '@/utils/ws-url.js'
 import { hasConsoleTable } from '@/utils/console-table.js'
 import StyleSelector from '@/components/StyleSelector.vue'
 import { useMaskStore } from '@/stores/maskStore'
@@ -1172,6 +1173,15 @@ function compressImage(file, maxEdge, quality) {
   })
 }
 
+function getPondBase() {
+  try {
+    const base = chatHttpBase(serverStore.current, transport.wsUrl)
+    if (base) return base
+    if (typeof location !== 'undefined' && /^https?:$/.test(location.protocol)) return location.origin
+    return ''
+  } catch (e) { return '' }
+}
+
 function uploadImageFile(file) {
   const type0 = (file.type || '').split('/')[1] || 'png'
   if (['png', 'jpeg', 'jpg', 'gif', 'bmp', 'webp'].indexOf(type0) < 0) {
@@ -1190,7 +1200,7 @@ function uploadImageFile(file) {
       const me = (onlineUsersStore.users || []).find(function (x) { return x.username === state.username }) || {}
       let selfId = me.id
       if (!selfId) { try { selfId = localStorage.getItem('xechat_self_id') || '' } catch (e) {} }
-      const ok = transport.uploadImage(out.base64, out.type, selfId)
+      const ok = transport.uploadImage(out.base64, out.type, selfId, getPondBase())
       setTimeout(function () { uploading.value = false }, ok ? 4000 : 0)
       if (!ok) console.warn('[xechat] 当前端不支持发送图片')
     })

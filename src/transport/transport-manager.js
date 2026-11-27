@@ -134,9 +134,9 @@ class TransportManager {
   }
 
   /** 踢人：WS 走特殊指令聊天帧 */
-  uploadImage(base64, fileType) {
+  uploadImage(base64, fileType, myId, base) {
     if (this._transport && typeof this._transport.uploadImage === 'function') {
-      return this._transport.uploadImage(base64, fileType)
+      return this._transport.uploadImage(base64, fileType, myId, base)
     }
     console.warn('[Transport] 当前模式不支持 uploadImage: ' + this.mode)
     return false

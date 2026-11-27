@@ -6,7 +6,7 @@
       <el-button size="small" type="primary" @click="loadImage">{{ isDirectImage ? '查看图片' : '下载图片' }}</el-button>
     </div>
     <div v-else class="image-msg-preview">
-      <img :src="imageSrc" alt="图片" @click="previewImage(imageSrc)" />
+      <img :src="imageSrcDyn || imageSrc" alt="图片" @click="previewImage(imageSrc)" />
       <span class="image-msg-close" title="收起图片" @click="imageLoaded = false">×</span>
     </div>
   </div>
@@ -28,7 +28,7 @@ import { computed, ref, watch } from 'vue'
 import MarkdownIt from 'markdown-it'
 import container from 'markdown-it-container'
 import { full as markdownItEmoji } from 'markdown-it-emoji'
-import { ElMessageBox } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { transport } from '../transport/transport-manager.js'
 import { useServerStore } from '../stores/serverStore.js'
 import { parsePlatformMarkup } from '../utils/platform.js'
@@ -41,6 +41,7 @@ const props = defineProps({
 })
 
 const showImage = ref(false)
+const imageSrcDyn = ref('')
 const imageLoaded = ref(false)
 const serverStore = useServerStore()
 
@@ -240,6 +241,8 @@ const isDirectImage = computed(() => {
 })
 
 const imageSrc = computed(() => {
+  // 服务端下发的完整地址优先（跨塘时指向发送方所在的塘）
+  if (props.url) return props.url
   if (props.msgType !== 'IMAGE' || !props.fileName) return ''
   if (/^https?:\/\//i.test(props.fileName)) return props.fileName
   const base = getDownloadBase()
@@ -247,9 +250,54 @@ const imageSrc = computed(() => {
   return base + '/download/' + encodeURIComponent(props.fileName)
 })
 
-// 点击“下载图片”按钮后加载展示
-function loadImage() {
-  if (!imageSrc.value) return
+
+/** 候选下载地址：消息自带 url → 本塘推导 → 鱼塘列表逐台尝试（老消息没有 url 时） */
+function imageCandidates() {
+  const list = []
+  if (props.url) list.push(props.url)
+  if (imageSrc.value) list.push(imageSrc.value)
+  const file = props.fileName
+  if (file && /^[\w.-]+\.(png|jpe?g|gif|bmp|webp)$/i.test(file)) {
+    try {
+      const servers = useServerStore().servers || []
+      const https = typeof location !== 'undefined' && location.protocol === 'https:'
+      servers.forEach(function (s) {
+        if (!s || !s.ip) return
+        const port = (parseInt(s.port, 10) || 33858) + 1
+        const p = '/download/' + encodeURIComponent(file)
+        list.push(https ? location.origin + '/xechat/pond/' + s.ip + '/' + port + p
+                        : 'http://' + s.ip + ':' + port + p)
+      })
+    } catch (e) {}
+  }
+  return Array.from(new Set(list.filter(Boolean)))
+}
+
+/** 试加载，成功返回 url，失败返回空串 */
+function probeImage(url) {
+  return new Promise(function (resolve) {
+    if (typeof Image === 'undefined') return resolve('')
+    const img = new Image()
+    img.onload = function () { resolve(url) }
+    img.onerror = function () { resolve('') }
+    img.src = url
+  })
+}
+
+// 点击“下载图片”按钮后加载展示（候选地址逐个试，老消息没有 url 也能找到图）
+async function loadImage() {
+  const cands = imageCandidates()
+  if (!cands.length) return
+  let ok = ''
+  for (let i = 0; i < cands.length; i++) {
+    ok = await probeImage(cands[i])
+    if (ok) break
+  }
+  if (!ok) {
+    ElMessage.error('图片加载失败：所有鱼塘都没找到该文件')
+    return
+  }
+  imageSrcDyn.value = ok
   imageLoaded.value = true
 }
 

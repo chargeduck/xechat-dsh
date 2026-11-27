@@ -187,7 +187,20 @@ export class WebSocketTransport {
     })
   }
 
+  _maybeImageUploaded(msg) {
+    const body = msg && msg.body
+    if (!body || !body.succeed || !body.data || !body.data.fileName) return false
+    const fileName = String(body.data.fileName)
+    if (!/\.(png|jpe?g|gif|bmp|webp)$/i.test(fileName)) return false
+    const base = this._lastUploadBase || ''
+    const payload = { content: fileName, msgType: 'IMAGE' }
+    if (base) payload.url = base + '/download/' + fileName
+    this._send({ action: 'CHAT', body: payload })
+    return true
+  }
+
   _dispatch(msg) {
+    if (this._maybeImageUploaded(msg)) return
     // 服务端协议使用 action 字段（LOGIN/CHAT/SYSTEM/...），兼容 type 兜底
     const type = msg.action || msg.type
     // 收到任何业务帧就说明这次 LOGIN 已被服务端接受，之后不再尝试平台降级
@@ -409,7 +422,8 @@ export class WebSocketTransport {
   /**
    * 发送图片（REACT/UPLOAD）：base64 字节交给服务端落盘，服务端随后自己广播 IMAGE 消息。
    */
-  uploadImage(base64, fileType, myId) {
+  uploadImage(base64, fileType, myId, base) {
+    this._lastUploadBase = base || ''
     if (!base64) return false
     // 服务端 ReactActionHandler 用 UserCache.get(request.getUid()) 查用户，
     // 这里必须是「登录后服务端分配的 id」，不是客户端自生成的 uuid，否则回「请先登录！」
@@ -419,7 +433,8 @@ export class WebSocketTransport {
     }
     this._send({
       action: 'REACT',
-      body: { react: 'UPLOAD', uid: uid, body: { fileType: fileType || 'png', bytes: base64 } }
+      body: { react: 'UPLOAD', uid: uid, body: Object.assign({ fileType: fileType || 'png', bytes: base64 },
+        base ? { base: String(base).replace(/\/+$/, '') } : {}) }
     })
     return true
   }

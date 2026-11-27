@@ -105,6 +105,39 @@ function _extractMdImageUrl(text) {
   return m ? m[1].trim() : ''
 }
 
+
+/**
+ * 老客户端发的图片消息没有 url 时，按发送方塘名去鱼塘列表里找 ip:port，
+ * 拼出真正存着这张图的地址（否则会退回自己连的塘，跨塘必然 404）。
+ */
+function _resolveImageUrl(data, fileName) {
+  try {
+    if (!fileName) return ''
+    const u = (data && data.user) || {}
+    const raw = String(u.shortRegion || '')
+    const pondName = raw.indexOf(' -> ') >= 0 ? raw.split(' -> ')[0] : (u.pond || '')
+    if (!pondName) return ''
+    const store = useServerStore()
+    const list = store.servers || []
+    const hit = list.find(function (s) {
+      if (!s || !s.name || !s.ip) return false
+      const n = String(s.name)
+      return n === pondName || n.indexOf(pondName) >= 0 || pondName.indexOf(n) >= 0
+    })
+    if (!hit) return ''
+    const port = (parseInt(hit.port, 10) || 33858) + 1
+    const path = '/download/' + encodeURIComponent(fileName)
+    if (typeof location !== 'undefined' && location.protocol === 'https:') {
+      return location.origin + '/xechat/pond/' + hit.ip + '/' + port + path
+    }
+    return 'http://' + hit.ip + ':' + port + path
+  } catch (e) {
+    return ''
+  }
+}
+
+let _recentImageKeys = []
+
 on('message', (data) => {
   const isSystem = data.type === 'system'
   // mask 屏蔽过滤（仅用户消息；对齐 Java UserMessageHandler：-n 整条丢弃，否则替换为占位文案）
@@ -148,8 +181,9 @@ on('message', (data) => {
       }
     }
   }
-  const isImage = data.msgType && String(data.msgType).toUpperCase() === 'IMAGE'
   const text = data.text || ''
+  const bareFileName = !!text && text.length < 128 && /^[\w.-]+\.(png|jpe?g|gif|bmp|webp)$/i.test(text.trim())
+  const isImage = (data.msgType && String(data.msgType).toUpperCase() === 'IMAGE') || bareFileName
   // TEXT 但含 markdown 图片：提取图片 URL，统一按图片消息处理（http 直链或相对文件名）
   const mdImageUrl = (!isSystem && !isImage) ? _extractMdImageUrl(text) : ''
   // 系统消息直接展示原文（清洗 null 来源标签）；用户消息格式化：[时间][地区] 昵称 (状态) 平台： 内容
@@ -159,9 +193,19 @@ on('message', (data) => {
   const displayType = isSystem ? 'system' : undefined
   let extra = null
   if (isImage) {
-    extra = {msgType: 'IMAGE', fileName: text}
+    extra = {msgType: 'IMAGE', fileName: text, url: data.url || _resolveImageUrl(data, text)}
   } else if (mdImageUrl) {
     extra = {msgType: 'IMAGE', fileName: mdImageUrl}
+  }
+
+  // 防重复：服务端老构建会自己广播一条 IMAGE，加上客户端补发的 CHAT 会出现两条，
+  // 同一文件名 1.5s 内只保留第一条
+  if (extra && extra.msgType === 'IMAGE' && extra.fileName) {
+    const key = String(extra.fileName)
+    const now = Date.now()
+    _recentImageKeys = _recentImageKeys.filter(function (k) { return now - k.t < 1500 })
+    if (_recentImageKeys.some(function (k) { return k.key === key })) return
+    _recentImageKeys.push({ key: key, t: now })
   }
 
   if (_chatStoreBridge) {
@@ -262,8 +306,10 @@ on('history', (data) => {
       const hText = (item.body && item.body.content) || ''
       const isImageMsg = item.body && item.body.msgType && String(item.body.msgType).toUpperCase() === 'IMAGE'
       const hMdUrl = (!isImageMsg && hText) ? _extractMdImageUrl(hText) : ''
+      const hName = isImageMsg ? hText : hMdUrl
       parsed.push(isImageMsg || hMdUrl
-        ? {text: head, type: 'user', msgType: 'IMAGE', fileName: isImageMsg ? hText : hMdUrl}
+        ? {text: head, type: 'user', msgType: 'IMAGE', fileName: hName,
+           url: (item.body && item.body.url) || _resolveImageUrl(item, hName)}
         : {text: head + hText, type: 'user'})
     }
   }

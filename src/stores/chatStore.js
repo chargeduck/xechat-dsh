@@ -26,7 +26,8 @@ export const useChatStore = defineStore('chat', {
         time: new Date().toLocaleTimeString(),
         type: type || undefined,
         msgType: (extra && extra.msgType) || undefined,
-        fileName: (extra && extra.fileName) || undefined
+        fileName: (extra && extra.fileName) || undefined,
+        url: (extra && extra.url) || undefined
       })
       if (this.messages.length > 1000) {
         this.messages.splice(0, this.messages.length - 1000)
@@ -59,7 +60,8 @@ export const useChatStore = defineStore('chat', {
           time: new Date().toLocaleTimeString(),
           type: p.type,
           msgType: p.msgType,
-          fileName: p.fileName
+          fileName: p.fileName,
+          url: p.url
         })
       })
       if (this.messages.length > 1000) {
