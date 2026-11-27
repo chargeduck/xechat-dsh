@@ -2,6 +2,7 @@ import {reactive, nextTick} from 'vue'
 import {on, lobbyInviteReply} from './api.js'
 import {ElMessage, ElMessageBox, ElNotification} from 'element-plus'
 import {useOnlineUsersStore} from './stores/onlineUsersStore.js'
+import { currentPlatform } from './utils/platform.js'
 import {cleanShortRegion, stripSystemNullTag} from './utils/regionClean.js'
 import {useMaskStore} from './stores/maskStore.js'
 import {useServerStore} from './stores/serverStore.js'
@@ -136,6 +137,50 @@ function _resolveImageUrl(data, fileName) {
   }
 }
 
+
+/** 自己在消息头里的样子（本地回显用） */
+function _selfHead() {
+  const me = (useOnlineUsersStore().users || []).find(function (u) { return u.username === state.username }) || {}
+  return _formatUserMessageHead({
+    time: new Date().toLocaleTimeString(),
+    user: {
+      username: state.username || me.username || '',
+      shortRegion: me.shortRegion || '',
+      status: me.status || '',
+      platform: me.platform || currentPlatform(),
+      role: me.role || ''
+    }
+  })
+}
+
+/** 本地已发文本消息（跳过服务端回显，避免发送后 1~2 秒才出现） */
+let _recentTextKeys = []
+
+export function addLocalTextMessage(text) {
+  const body = String(text || '')
+  if (!body) return
+  const head = _selfHead()
+  const key = body
+  const now = Date.now()
+  _recentTextKeys = _recentTextKeys.filter(function (k) { return now - k.t < 8000 })
+  _recentTextKeys.push({ key: key, t: now })
+  if (_chatStoreBridge) _chatStoreBridge.addMessage(head + body, undefined, null)
+  else state.messages.push({ text: head + body, time: new Date().toLocaleTimeString(), type: undefined })
+}
+
+function _isLocalEcho(data, rawText) {
+  if (!_recentTextKeys.length) return false
+  const me = state.username || ''
+  const uname = (data.user && data.user.username) || ''
+  if (me && uname && me !== uname) return false
+  const now = Date.now()
+  _recentTextKeys = _recentTextKeys.filter(function (k) { return now - k.t < 8000 })
+  const idx = _recentTextKeys.findIndex(function (k) { return k.key === rawText })
+  if (idx < 0) return false
+  _recentTextKeys.splice(idx, 1)
+  return true
+}
+
 let _recentImageKeys = []
 
 on('message', (data) => {
@@ -203,10 +248,12 @@ on('message', (data) => {
   if (extra && extra.msgType === 'IMAGE' && extra.fileName) {
     const key = String(extra.fileName)
     const now = Date.now()
-    _recentImageKeys = _recentImageKeys.filter(function (k) { return now - k.t < 1500 })
+    _recentImageKeys = _recentImageKeys.filter(function (k) { return now - k.t < 8000 })
     if (_recentImageKeys.some(function (k) { return k.key === key })) return
     _recentImageKeys.push({ key: key, t: now })
   }
+
+  if (!extra && _isLocalEcho(data, text)) return
 
   if (_chatStoreBridge) {
     _chatStoreBridge.addMessage(displayText, displayType, extra)

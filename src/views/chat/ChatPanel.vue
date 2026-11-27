@@ -132,7 +132,7 @@ import { useOnlineUsersStore } from '@/stores/onlineUsersStore'
 import { useUserStatusStore } from '@/stores/userStatusStore'
 import { useSettingsStore, formatShortcut } from '@/stores/settingsStore'
 import { useCommandHistoryStore } from '@/stores/commandHistoryStore'
-import { setChatStoreBridge, state } from '@/store.js'
+import { setChatStoreBridge, state , addLocalTextMessage } from '@/store.js'
 import { transport } from '@/transport/transport-manager.js'
 import { saveSession, loadSession, clearSession } from '@/session.js'
 import MarkdownMessage from '@/components/MarkdownMessage.vue'
@@ -1284,6 +1284,7 @@ async function send() {
     } else {
       const toUsers = resolveAtToUsers(text)
       console.log('[ChatPanel] → sendMessage: ' + text + (toUsers.length ? ' toUsers=' + JSON.stringify(toUsers) : ''))
+      try { addLocalTextMessage(text) } catch (e) {}
       transport.sendMessage(text, toUsers)
     }
     console.log('[ChatPanel] send() 完成')

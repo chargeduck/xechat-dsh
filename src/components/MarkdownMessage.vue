@@ -260,13 +260,14 @@ function imageCandidates() {
   if (file && /^[\w.-]+\.(png|jpe?g|gif|bmp|webp)$/i.test(file)) {
     try {
       const servers = useServerStore().servers || []
-      const https = typeof location !== 'undefined' && location.protocol === 'https:'
+      const origin = relayProxyOrigin(transport && transport.wsUrl)
+        || (typeof location !== 'undefined' && /^https?:$/.test(location.protocol) ? location.origin : '')
       servers.forEach(function (s) {
         if (!s || !s.ip) return
         const port = (parseInt(s.port, 10) || 33858) + 1
         const p = '/download/' + encodeURIComponent(file)
-        list.push(https ? location.origin + '/xechat/pond/' + s.ip + '/' + port + p
-                        : 'http://' + s.ip + ':' + port + p)
+        list.push(origin ? origin + '/xechat/pond/' + s.ip + '/' + port + p
+                         : 'http://' + s.ip + ':' + port + p)
       })
     } catch (e) {}
   }

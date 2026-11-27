@@ -170,6 +170,20 @@ export function describeWsRoute(host, port, explicitUrl) {
  * @param {string} [fallbackWsUrl] transport.wsUrl 兜底
  * @returns {string} 形如 `https://xechat.example.com` 或 `http://1.2.3.4:33859`
  */
+/**
+ * 中继站点的 HTTP(S) origin：wss://xechat.lesscoding.net/xechat/relay/... → https://xechat.lesscoding.net
+ * webview（file:// / vscode-webview://）没有同源 origin，只能用中继站点做反代入口，
+ * 否则会直连各塘 IP，被宿主网络权限（net.http:<host>）拦掉。
+ */
+export function relayProxyOrigin(fallbackWsUrl) {
+  const url = String(fallbackWsUrl || '')
+  // 只认中继地址（ws://127.0.0.1:1025 这类宿主本地通道不能当图片反代入口）
+  if (url.indexOf('/xechat/relay/') < 0) return ''
+  const m = /^(wss?):\/\/([^/]+)/.exec(url)
+  if (!m) return ''
+  return (m[1] === 'wss' ? 'https://' : 'http://') + m[2]
+}
+
 export function chatHttpBase(current, fallbackWsUrl) {
   // 走中继时地址形如 wss://<站点>/xechat/relay/<塘IP>/<wsPort>：
   // 图片是存在那台塘上的，下载必须按中继路径里的 <塘IP>:<wsPort> 拼，
@@ -181,14 +195,18 @@ export function chatHttpBase(current, fallbackWsUrl) {
     const port = relay[2]
     // 目标塘就是当前站点：直接用同源 /download/（nginx 已反代到本机塘的 HTTP 端口），
     // 既能命中文件，也不会被浏览器当成混合内容拦掉。
+    const proxyOrigin = relayProxyOrigin(relayUrl)
+      || (typeof location !== 'undefined' ? location.origin : '')
     if (typeof location !== 'undefined' && location.hostname === host) {
       return location.origin
     }
     // 跨塘（别的 IP / 域名）
     // HTTPS 页面下浏览器会把 http:// 图片当混合内容拦掉，改走同源反代：
     //   /xechat/pond/<host>/<port>/download/<file>  → nginx 转发到那台塘的 HTTP 端口
-    if (typeof location !== 'undefined' && location.protocol === 'https:') {
-      return location.origin + '/xechat/pond/' + host + '/' + port
+    // 统一走中继站点的 /xechat/pond 反代：HTTPS 页面避免混合内容，
+    // webview 避免直连 <塘IP> 触发宿主网络权限拦截。
+    if (proxyOrigin) {
+      return proxyOrigin + '/xechat/pond/' + host + '/' + port
     }
     return 'http://' + host + ':' + port
   }
